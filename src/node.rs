@@ -34,6 +34,7 @@ pub trait OutputExt {
     fn round(&self) -> Node;
     fn trunc(&self) -> Node;
     fn fract(&self) -> Node;
+    fn recip(&self) -> Node;
     fn signum(&self) -> Node;
     fn max(&self, b: impl IntoOutput) -> Node;
     fn min(&self, b: impl IntoOutput) -> Node;
@@ -246,6 +247,12 @@ impl OutputExt for Output {
     #[track_caller]
     fn fract(&self) -> Node {
         specific_unary_op_impl!(self, Fract => f32)
+    }
+
+    #[inline]
+    #[track_caller]
+    fn recip(&self) -> Node {
+        specific_unary_op_impl!(self, Recip => f32)
     }
 
     #[inline]
@@ -480,6 +487,13 @@ impl OutputExt for Node {
     fn fract(&self) -> Node {
         self.assert_single_output("fract");
         self.output(0).fract()
+    }
+
+    #[inline]
+    #[track_caller]
+    fn recip(&self) -> Node {
+        self.assert_single_output("recip");
+        self.output(0).recip()
     }
 
     #[inline]

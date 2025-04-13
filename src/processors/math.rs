@@ -187,6 +187,12 @@ pub fn fract(#[input] a: &f32, #[output] out: &mut f32) -> ProcResult<()> {
 }
 
 #[processor(derive(Default))]
+pub fn recip(#[input] a: &f32, #[output] out: &mut f32) -> ProcResult<()> {
+    *out = a.recip();
+    Ok(())
+}
+
+#[processor(derive(Default))]
 pub fn max<T>(#[input] a: &T, #[input] b: &T, #[output] out: &mut T) -> ProcResult<()>
 where
     T: std::cmp::PartialOrd + Signal,
