@@ -16,9 +16,9 @@ impl CastTo<f64> for f32 {
     }
 }
 
-impl CastTo<i32> for f64 {
-    fn cast(&self) -> i32 {
-        *self as i32
+impl CastTo<i64> for f64 {
+    fn cast(&self) -> i64 {
+        *self as i64
     }
 }
 
@@ -28,9 +28,9 @@ impl CastTo<i64> for f32 {
     }
 }
 
-impl CastTo<i32> for f32 {
-    fn cast(&self) -> i32 {
-        *self as i32
+impl CastTo<f32> for i64 {
+    fn cast(&self) -> f32 {
+        *self as f32
     }
 }
 
