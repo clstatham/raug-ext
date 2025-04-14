@@ -195,7 +195,7 @@ impl<T: Signal> Processor for Select<T> {
             let output_index = *index as usize;
 
             if sample_index < input.len() {
-                outputs.set_output_as(output_index, sample_index, input[sample_index].clone())?;
+                outputs.set_output_as(output_index, sample_index, &input[sample_index])?;
             }
         }
 
@@ -254,7 +254,7 @@ impl<T: Signal> Processor for Merge<T> {
             let input = inputs.input_as::<T>(input_index).unwrap();
 
             if sample_index < input.len() {
-                outputs.set_output_as(0, sample_index, input[sample_index].clone())?;
+                outputs.set_output_as(0, sample_index, &input[sample_index])?;
             }
         }
 
@@ -290,17 +290,18 @@ where
 }
 
 #[processor(derive(Default))]
-pub fn random_choice<T>(
+pub fn random_choice<T, L>(
     #[state] state: &mut Option<T>,
     #[input] trig: &bool,
-    #[input] options: &&'static [T],
+    #[input] options: &L,
     #[output] out: &mut Option<T>,
 ) -> ProcResult<()>
 where
     T: Signal,
+    L: AsRef<[T]> + Signal,
 {
     if *trig {
-        *state = options.choose(&mut rand::rng()).cloned();
+        *state = options.as_ref().choose(&mut rand::rng()).cloned();
     }
 
     *out = state.clone();
