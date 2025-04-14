@@ -9,12 +9,14 @@ pub fn phase_accumulator(
     #[input] reset: &bool,
     #[output] out: &mut f32,
 ) -> ProcResult<()> {
+    *out = *t as f32 * increment;
+
     if *reset {
         *t = 0;
     } else {
         *t += 1;
     }
-    *out = *t as f32 * increment;
+
     Ok(())
 }
 

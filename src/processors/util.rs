@@ -292,15 +292,14 @@ where
 }
 
 #[processor(derive(Default))]
-pub fn random_choice<T, L>(
+pub fn random_choice<T>(
     #[state] state: &mut Option<T>,
     #[input] trig: &bool,
-    #[input] options: &L,
+    #[input] options: &List<T>,
     #[output] out: &mut Option<T>,
 ) -> ProcResult<()>
 where
     T: Signal,
-    L: AsRef<[T]> + Signal,
 {
     if *trig {
         *state = options.as_ref().choose(&mut rand::rng()).cloned();
