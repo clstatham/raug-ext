@@ -89,7 +89,6 @@ impl Default for BlSawOscillator {
             dp: 1.0,
             saw: 0.0,
             frequency: 440.0,
-            out: 0.0,
         }
     }
 }

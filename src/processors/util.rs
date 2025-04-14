@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use rand::seq::IndexedRandom;
 use raug::prelude::*;
 
@@ -80,7 +82,7 @@ impl<T: Signal> Message<T> {
             last_message: msg,
             trig: false,
             message: None,
-            out: None,
+            _marker0: PhantomData,
         }
     }
 }
@@ -142,14 +144,14 @@ where
 #[derive(Clone)]
 pub struct Select<T: Signal> {
     pub arity: usize,
-    _marker: std::marker::PhantomData<T>,
+    _marker: PhantomData<T>,
 }
 
 impl<T: Signal> Select<T> {
     pub fn new(arity: usize) -> Self {
         Select {
             arity,
-            _marker: std::marker::PhantomData,
+            _marker: PhantomData,
         }
     }
 }
@@ -206,14 +208,14 @@ impl<T: Signal> Processor for Select<T> {
 #[derive(Clone)]
 pub struct Merge<T: Signal> {
     pub arity: usize,
-    _marker: std::marker::PhantomData<T>,
+    _marker: PhantomData<T>,
 }
 
 impl<T: Signal> Merge<T> {
     pub fn new(arity: usize) -> Self {
         Merge {
             arity,
-            _marker: std::marker::PhantomData,
+            _marker: PhantomData,
         }
     }
 }

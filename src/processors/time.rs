@@ -37,7 +37,6 @@ impl Metro {
             time: 0.0,
             period,
             reset: false,
-            out: false,
         }
     }
 }
@@ -79,7 +78,6 @@ impl DecayEnv {
             time: 0.0,
             trig: false,
             tau,
-            out: 0.0,
         }
     }
 }

@@ -46,7 +46,6 @@ impl Default for PeakLimiter {
             threshold: 0.988_553_1,
             attack: 0.9,
             release: 0.9995,
-            out: 0.0,
         }
     }
 }
