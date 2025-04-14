@@ -1,3 +1,4 @@
+use rand::seq::IndexedRandom;
 use raug::prelude::*;
 
 pub trait CastTo<T> {
@@ -61,11 +62,11 @@ where
     T: Signal,
 {
     if let Some(msg) = message.as_ref() {
-        *last_message = *msg;
+        *last_message = msg.clone();
     }
 
     if *trig {
-        *out = Some(*last_message);
+        *out = Some(last_message.clone());
     } else {
         *out = None;
     }
@@ -95,14 +96,14 @@ where
     T: Signal,
 {
     if let Some(value) = set.as_ref() {
-        *last_value = Some(*value);
+        *last_value = Some(value.clone());
     }
 
     if *clear {
         *last_value = None;
     }
 
-    *out = *last_value;
+    *out = last_value.clone();
     Ok(())
 }
 
@@ -116,9 +117,9 @@ where
     T: Signal,
 {
     if let Some(value) = a {
-        *out = Some(*value);
+        *out = Some(value.clone());
     } else if let Some(value) = b {
-        *out = Some(*value);
+        *out = Some(value.clone());
     } else {
         *out = None;
     }
@@ -131,9 +132,9 @@ where
     T: Signal,
 {
     if let Some(value) = a {
-        *out = *value;
+        *out = value.clone();
     } else {
-        *out = *b;
+        *out = b.clone();
     }
     Ok(())
 }
@@ -194,7 +195,7 @@ impl<T: Signal> Processor for Select<T> {
             let output_index = *index as usize;
 
             if sample_index < input.len() {
-                outputs.set_output_as(output_index, sample_index, input[sample_index])?;
+                outputs.set_output_as(output_index, sample_index, input[sample_index].clone())?;
             }
         }
 
@@ -253,7 +254,7 @@ impl<T: Signal> Processor for Merge<T> {
             let input = inputs.input_as::<T>(input_index).unwrap();
 
             if sample_index < input.len() {
-                outputs.set_output_as(0, sample_index, input[sample_index])?;
+                outputs.set_output_as(0, sample_index, input[sample_index].clone())?;
             }
         }
 
@@ -272,10 +273,10 @@ where
     T: Signal,
 {
     if *trig {
-        *last_value = *input;
+        *last_value = input.clone();
     }
 
-    *out = *last_value;
+    *out = last_value.clone();
     Ok(())
 }
 
@@ -284,6 +285,24 @@ pub fn some<T>(#[input] a: &T, #[output] out: &mut Option<T>) -> ProcResult<()>
 where
     T: Signal,
 {
-    *out = Some(*a);
+    *out = Some(a.clone());
+    Ok(())
+}
+
+#[processor(derive(Default))]
+pub fn random_choice<T>(
+    #[state] state: &mut Option<T>,
+    #[input] trig: &bool,
+    #[input] options: &&'static [T],
+    #[output] out: &mut Option<T>,
+) -> ProcResult<()>
+where
+    T: Signal,
+{
+    if *trig {
+        *state = options.choose(&mut rand::rng()).cloned();
+    }
+
+    *out = state.clone();
     Ok(())
 }

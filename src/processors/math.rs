@@ -197,7 +197,7 @@ pub fn max<T>(#[input] a: &T, #[input] b: &T, #[output] out: &mut T) -> ProcResu
 where
     T: std::cmp::PartialOrd + Signal,
 {
-    *out = if a > b { *a } else { *b };
+    *out = if a > b { a.clone() } else { b.clone() };
     Ok(())
 }
 
@@ -206,7 +206,7 @@ pub fn min<T>(#[input] a: &T, #[input] b: &T, #[output] out: &mut T) -> ProcResu
 where
     T: std::cmp::PartialOrd + Signal,
 {
-    *out = if a < b { *a } else { *b };
+    *out = if a < b { a.clone() } else { b.clone() };
     Ok(())
 }
 
@@ -221,11 +221,11 @@ where
     T: std::cmp::PartialOrd + Signal,
 {
     *out = if a < min {
-        *min
+        min.clone()
     } else if a > max {
-        *max
+        max.clone()
     } else {
-        *a
+        a.clone()
     };
     Ok(())
 }
