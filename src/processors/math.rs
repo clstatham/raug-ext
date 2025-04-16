@@ -195,18 +195,18 @@ pub fn recip(#[input] a: &f32, #[output] out: &mut f32) -> ProcResult<()> {
 #[processor(derive(Default))]
 pub fn max<T>(#[input] a: &T, #[input] b: &T, #[output] out: &mut T) -> ProcResult<()>
 where
-    T: std::cmp::PartialOrd + Signal,
+    T: std::cmp::PartialOrd + Signal + Default,
 {
-    *out = if a > b { a.clone() } else { b.clone() };
+    out.clone_from(if a > b { a } else { b });
     Ok(())
 }
 
 #[processor(derive(Default))]
 pub fn min<T>(#[input] a: &T, #[input] b: &T, #[output] out: &mut T) -> ProcResult<()>
 where
-    T: std::cmp::PartialOrd + Signal,
+    T: std::cmp::PartialOrd + Signal + Default,
 {
-    *out = if a < b { a.clone() } else { b.clone() };
+    out.clone_from(if a < b { a } else { b });
     Ok(())
 }
 
@@ -218,15 +218,15 @@ pub fn clamp<T>(
     #[output] out: &mut T,
 ) -> ProcResult<()>
 where
-    T: std::cmp::PartialOrd + Signal,
+    T: std::cmp::PartialOrd + Signal + Default,
 {
-    *out = if a < min {
-        min.clone()
+    out.clone_from(if a < min {
+        min
     } else if a > max {
-        max.clone()
+        max
     } else {
-        a.clone()
-    };
+        a
+    });
     Ok(())
 }
 

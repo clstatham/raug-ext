@@ -41,7 +41,7 @@ impl CastTo<f32> for i64 {
 pub fn cast<T, U>(#[input] a: &T, #[output] out: &mut U) -> ProcResult<()>
 where
     T: Signal + CastTo<U>,
-    U: Signal,
+    U: Signal + Default,
 {
     *out = a.cast();
     Ok(())
@@ -64,7 +64,7 @@ where
     T: Signal,
 {
     if let Some(msg) = message.as_ref() {
-        *last_message = msg.clone();
+        last_message.clone_from(msg);
     }
 
     if *trig {
@@ -110,28 +110,9 @@ where
 }
 
 #[processor(derive(Default))]
-pub fn or<T>(
-    #[input] a: &Option<T>,
-    #[input] b: &Option<T>,
-    #[output] out: &mut Option<T>,
-) -> ProcResult<()>
-where
-    T: Signal,
-{
-    if let Some(value) = a {
-        *out = Some(value.clone());
-    } else if let Some(value) = b {
-        *out = Some(value.clone());
-    } else {
-        *out = None;
-    }
-    Ok(())
-}
-
-#[processor(derive(Default))]
 pub fn unwrap_or<T>(#[input] a: &Option<T>, #[input] b: &T, #[output] out: &mut T) -> ProcResult<()>
 where
-    T: Signal,
+    T: Signal + Default,
 {
     if let Some(value) = a {
         *out = value.clone();
@@ -142,12 +123,12 @@ where
 }
 
 #[derive(Clone)]
-pub struct Select<T: Signal> {
+pub struct Select<T: Signal + Default> {
     pub arity: usize,
     _marker: PhantomData<T>,
 }
 
-impl<T: Signal> Select<T> {
+impl<T: Signal + Default> Select<T> {
     pub fn new(arity: usize) -> Self {
         Select {
             arity,
@@ -156,7 +137,7 @@ impl<T: Signal> Select<T> {
     }
 }
 
-impl<T: Signal> Processor for Select<T> {
+impl<T: Signal + Default> Processor for Select<T> {
     fn input_spec(&self) -> Vec<SignalSpec> {
         vec![
             SignalSpec::new("input", T::signal_type()),
@@ -170,9 +151,9 @@ impl<T: Signal> Processor for Select<T> {
             .collect()
     }
 
-    fn create_output_buffers(&self, size: usize) -> Vec<ErasedBuffer> {
+    fn create_output_buffers(&self, size: usize) -> Vec<AnyBuffer> {
         (0..self.arity)
-            .map(|_| ErasedBuffer::zeros::<T>(size))
+            .map(|_| AnyBuffer::zeros::<T>(size))
             .collect()
     }
 
@@ -206,12 +187,12 @@ impl<T: Signal> Processor for Select<T> {
 }
 
 #[derive(Clone)]
-pub struct Merge<T: Signal> {
+pub struct Merge<T: Signal + Default> {
     pub arity: usize,
     _marker: PhantomData<T>,
 }
 
-impl<T: Signal> Merge<T> {
+impl<T: Signal + Default> Merge<T> {
     pub fn new(arity: usize) -> Self {
         Merge {
             arity,
@@ -220,7 +201,7 @@ impl<T: Signal> Merge<T> {
     }
 }
 
-impl<T: Signal> Processor for Merge<T> {
+impl<T: Signal + Default> Processor for Merge<T> {
     fn input_spec(&self) -> Vec<SignalSpec> {
         let mut inputs = Vec::with_capacity(self.arity + 1);
         inputs.push(SignalSpec::new("index", i64::signal_type()));
@@ -234,8 +215,8 @@ impl<T: Signal> Processor for Merge<T> {
         vec![SignalSpec::new("out", T::signal_type())]
     }
 
-    fn create_output_buffers(&self, size: usize) -> Vec<ErasedBuffer> {
-        vec![ErasedBuffer::zeros::<T>(size)]
+    fn create_output_buffers(&self, size: usize) -> Vec<AnyBuffer> {
+        vec![AnyBuffer::zeros::<T>(size)]
     }
 
     fn process(
@@ -272,7 +253,7 @@ pub fn sample_and_hold<T>(
     #[output] out: &mut T,
 ) -> ProcResult<()>
 where
-    T: Signal,
+    T: Signal + Default,
 {
     if *trig {
         *last_value = input.clone();

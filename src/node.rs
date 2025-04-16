@@ -40,9 +40,8 @@ pub trait OutputExt {
     fn min(&self, b: impl IntoOutput) -> Node;
     fn clamp(&self, min: impl IntoOutput, max: impl IntoOutput) -> Node;
 
-    fn cast<T: Signal + CastTo<U>, U: Signal>(&self) -> Node;
+    fn cast<T: Signal + CastTo<U> + Default, U: Signal + Default>(&self) -> Node;
     fn some(&self) -> Node;
-    fn or(&self, b: impl IntoOutput) -> Node;
     fn unwrap_or(&self, b: impl IntoOutput) -> Node;
 }
 
@@ -299,7 +298,7 @@ impl OutputExt for Output {
 
     #[inline]
     #[track_caller]
-    fn cast<T: Signal + CastTo<U>, U: Signal>(&self) -> Node {
+    fn cast<T: Signal + CastTo<U> + Default, U: Signal + Default>(&self) -> Node {
         let this_node = self.node();
         let graph = this_node.graph();
         assert_eq!(
@@ -317,12 +316,6 @@ impl OutputExt for Output {
     #[track_caller]
     fn some(&self) -> Node {
         generic_unary_op_impl!(self, Some => f32 i64)
-    }
-
-    #[inline]
-    #[track_caller]
-    fn or(&self, b: impl IntoOutput) -> Node {
-        generic_binary_op_impl!(self, b, Or => Option<f32> Option<i64>)
     }
 
     #[inline]
@@ -526,7 +519,7 @@ impl OutputExt for Node {
 
     #[inline]
     #[track_caller]
-    fn cast<T: Signal + CastTo<U>, U: Signal>(&self) -> Node {
+    fn cast<T: Signal + CastTo<U> + Default, U: Signal + Default>(&self) -> Node {
         self.assert_single_output("cast");
         self.output(0).cast::<T, U>()
     }
@@ -536,13 +529,6 @@ impl OutputExt for Node {
     fn some(&self) -> Node {
         self.assert_single_output("some");
         self.output(0).some()
-    }
-
-    #[inline]
-    #[track_caller]
-    fn or(&self, b: impl IntoOutput) -> Node {
-        self.assert_single_output("or");
-        self.output(0).or(b)
     }
 
     #[inline]
