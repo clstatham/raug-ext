@@ -9,3 +9,4 @@ hound = "3.5"
 rand = "0.9"
 raug = { path = "../raug" }
 samplerate = "0.2"
+thiserror = "2.0"

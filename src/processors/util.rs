@@ -1,8 +1,9 @@
-use std::marker::PhantomData;
+use std::{fmt::Debug, marker::PhantomData};
 
 use crossbeam_channel::{Receiver, Sender};
 use rand::seq::IndexedRandom;
 use raug::prelude::*;
+use thiserror::Error;
 
 pub trait CastTo<T> {
     fn cast(&self) -> T;
@@ -123,129 +124,6 @@ where
     Ok(())
 }
 
-#[derive(Clone)]
-pub struct Select<T: Signal + Default> {
-    pub arity: usize,
-    _marker: PhantomData<T>,
-}
-
-impl<T: Signal + Default> Select<T> {
-    pub fn new(arity: usize) -> Self {
-        Select {
-            arity,
-            _marker: PhantomData,
-        }
-    }
-}
-
-impl<T: Signal + Default> Processor for Select<T> {
-    fn input_spec(&self) -> Vec<SignalSpec> {
-        vec![
-            SignalSpec::new("input", T::signal_type()),
-            SignalSpec::new("index", i64::signal_type()),
-        ]
-    }
-
-    fn output_spec(&self) -> Vec<SignalSpec> {
-        (0..self.arity)
-            .map(|i| SignalSpec::new(format!("out_{}", i), T::signal_type()))
-            .collect()
-    }
-
-    fn create_output_buffers(&self, size: usize) -> Vec<AnyBuffer> {
-        (0..self.arity)
-            .map(|_| AnyBuffer::zeros::<T>(size))
-            .collect()
-    }
-
-    fn process(
-        &mut self,
-        inputs: ProcessorInputs,
-        mut outputs: ProcessorOutputs,
-    ) -> Result<(), ProcessorError> {
-        let Some(input) = inputs.input_as::<T>(0) else {
-            return Ok(());
-        };
-
-        let Some(index) = inputs.input_as::<i64>(1) else {
-            return Ok(());
-        };
-
-        for (sample_index, index) in index.iter().enumerate() {
-            if *index < 0 || *index >= self.arity as i64 {
-                continue;
-            }
-
-            let output_index = *index as usize;
-
-            if sample_index < input.len() {
-                outputs.set_output_as(output_index, sample_index, &input[sample_index])?;
-            }
-        }
-
-        Ok(())
-    }
-}
-
-#[derive(Clone)]
-pub struct Merge<T: Signal + Default> {
-    pub arity: usize,
-    _marker: PhantomData<T>,
-}
-
-impl<T: Signal + Default> Merge<T> {
-    pub fn new(arity: usize) -> Self {
-        Merge {
-            arity,
-            _marker: PhantomData,
-        }
-    }
-}
-
-impl<T: Signal + Default> Processor for Merge<T> {
-    fn input_spec(&self) -> Vec<SignalSpec> {
-        let mut inputs = Vec::with_capacity(self.arity + 1);
-        inputs.push(SignalSpec::new("index", i64::signal_type()));
-        for i in 0..self.arity {
-            inputs.push(SignalSpec::new(format!("input_{}", i), T::signal_type()));
-        }
-        inputs
-    }
-
-    fn output_spec(&self) -> Vec<SignalSpec> {
-        vec![SignalSpec::new("out", T::signal_type())]
-    }
-
-    fn create_output_buffers(&self, size: usize) -> Vec<AnyBuffer> {
-        vec![AnyBuffer::zeros::<T>(size)]
-    }
-
-    fn process(
-        &mut self,
-        inputs: ProcessorInputs,
-        mut outputs: ProcessorOutputs,
-    ) -> Result<(), ProcessorError> {
-        let Some(index) = inputs.input_as::<i64>(0) else {
-            return Ok(());
-        };
-
-        for (sample_index, index) in index.iter().enumerate() {
-            if *index < 0 || *index >= self.arity as i64 {
-                continue;
-            }
-
-            let input_index = *index as usize + 1;
-            let input = inputs.input_as::<T>(input_index).unwrap();
-
-            if sample_index < input.len() {
-                outputs.set_output_as(0, sample_index, &input[sample_index])?;
-            }
-        }
-
-        Ok(())
-    }
-}
-
 #[processor(derive(Default))]
 pub fn sample_and_hold<T>(
     #[state] last_value: &mut T,
@@ -291,15 +169,21 @@ where
     Ok(())
 }
 
+#[derive(Error, Debug)]
+pub enum ChannelError<T: Signal + Debug> {
+    #[error("Failed to send message")]
+    SendError(#[from] crossbeam_channel::TrySendError<T>),
+    #[error("Failed to receive message")]
+    ReceiveError(#[from] crossbeam_channel::TryRecvError),
+}
+
 #[processor]
 pub fn tx<T>(#[state] tx: &mut Sender<T>, #[input] input: &T) -> ProcResult<()>
 where
-    T: Signal + Default,
+    T: Signal + Default + Debug,
 {
-    if tx.try_send(input.clone()).is_err() {
-        return Err(ProcessorError::ProcessingError(
-            "Failed to send message".to_string(),
-        ));
+    if let Err(e) = tx.try_send(input.clone()) {
+        return Err(ProcessorError::new(ChannelError::SendError(e)));
     }
     Ok(())
 }
@@ -316,7 +200,7 @@ where
     Ok(())
 }
 
-pub fn signal_channel<T: Signal + Default>() -> (Tx<T>, Rx<T>) {
+pub fn signal_channel<T: Signal + Default + Debug>() -> (Tx<T>, Rx<T>) {
     let (tx, rx) = crossbeam_channel::unbounded();
     (
         Tx {
