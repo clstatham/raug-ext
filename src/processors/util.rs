@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use crossbeam_channel::{Receiver, Sender};
 use rand::seq::IndexedRandom;
 use raug::prelude::*;
 
@@ -288,4 +289,44 @@ where
 
     *out = state.clone();
     Ok(())
+}
+
+#[processor]
+pub fn tx<T>(#[state] tx: &mut Sender<T>, #[input] input: &T) -> ProcResult<()>
+where
+    T: Signal + Default,
+{
+    if tx.try_send(input.clone()).is_err() {
+        return Err(ProcessorError::ProcessingError(
+            "Failed to send message".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+#[processor]
+pub fn rx<T>(#[state] rx: &mut Receiver<T>, #[output] out: &mut T) -> ProcResult<()>
+where
+    T: Signal + Default,
+{
+    match rx.try_recv() {
+        Ok(value) => *out = value,
+        Err(_) => *out = T::default(),
+    }
+    Ok(())
+}
+
+pub fn signal_channel<T: Signal + Default>() -> (Tx<T>, Rx<T>) {
+    let (tx, rx) = crossbeam_channel::unbounded();
+    (
+        Tx {
+            tx,
+            input: T::default(),
+            _marker0: PhantomData,
+        },
+        Rx {
+            rx,
+            _marker0: PhantomData,
+        },
+    )
 }

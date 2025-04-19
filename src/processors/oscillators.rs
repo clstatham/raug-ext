@@ -20,6 +20,15 @@ pub fn phase_accumulator(
     Ok(())
 }
 
+impl PhaseAccumulator {
+    pub fn new(increment: f32) -> Self {
+        PhaseAccumulator {
+            increment,
+            ..Default::default()
+        }
+    }
+}
+
 #[processor(derive(Default))]
 pub fn sine_oscillator(
     env: ProcEnv,
