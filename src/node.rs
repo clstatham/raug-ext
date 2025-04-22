@@ -47,8 +47,7 @@ pub trait OutputExt {
 
 macro_rules! generic_binary_op_impl {
     ($self:ident, $b:ident, $op:ident => $($options:ty)*) => {{
-        let this_node = $self.node();
-        let graph = this_node.graph();
+        let graph = $self.graph();
         let b = $b.into_output(graph);
         assert_eq!(
             $self.signal_type(),
@@ -64,8 +63,7 @@ macro_rules! generic_binary_op_impl {
 
 macro_rules! specific_binary_op_impl {
     ($self:ident, $b:ident, $op:ident => $type:ident) => {{
-        let this_node = $self.node();
-        let graph = this_node.graph();
+        let graph = $self.graph();
         assert_eq!(
             $self.signal_type(),
             $type::signal_type(),
@@ -87,8 +85,7 @@ macro_rules! specific_binary_op_impl {
 
 macro_rules! generic_unary_op_impl {
     ($self:ident, $op:ident => $($options:ty)*) => {{
-        let this_node = $self.node();
-        let graph = this_node.graph();
+        let graph = $self.graph();
         let node = choose_node_generics!(graph, $self.signal_type() => $op => $($options)*);
         node.input(0).connect($self);
         node
@@ -97,8 +94,7 @@ macro_rules! generic_unary_op_impl {
 
 macro_rules! specific_unary_op_impl {
     ($self:ident, $op:ident => $type:ident) => {{
-        let this_node = $self.node();
-        let graph = this_node.graph();
+        let graph = $self.graph();
         assert_eq!(
             $self.signal_type(),
             $type::signal_type(),
@@ -121,8 +117,7 @@ impl OutputExt for Output {
     #[inline]
     #[track_caller]
     fn powi(&self, b: impl IntoOutput) -> Node {
-        let this_node = self.node();
-        let graph = this_node.graph();
+        let graph = self.graph();
         let b = b.into_output(graph);
         assert_eq!(
             self.signal_type(),
@@ -275,8 +270,7 @@ impl OutputExt for Output {
     #[inline]
     #[track_caller]
     fn clamp(&self, min: impl IntoOutput, max: impl IntoOutput) -> Node {
-        let this_node = self.node();
-        let graph = this_node.graph();
+        let graph = self.graph();
         let min = min.into_output(graph);
         let max = max.into_output(graph);
         assert_eq!(
@@ -299,8 +293,7 @@ impl OutputExt for Output {
     #[inline]
     #[track_caller]
     fn cast<T: Signal + CastTo<U> + Default, U: Signal + Default>(&self) -> Node {
-        let this_node = self.node();
-        let graph = this_node.graph();
+        let graph = self.graph();
         assert_eq!(
             self.signal_type(),
             T::signal_type(),
@@ -321,8 +314,7 @@ impl OutputExt for Output {
     #[inline]
     #[track_caller]
     fn unwrap_or(&self, b: impl IntoOutput) -> Node {
-        let this_node = self.node();
-        let graph = this_node.graph();
+        let graph = self.graph();
         let b = b.into_output(graph);
         assert_eq!(
             self.signal_type(),
