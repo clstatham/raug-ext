@@ -38,12 +38,12 @@ pub fn sine_oscillator(
     #[input] reset: &bool,
     #[output] out: &mut f32,
 ) -> ProcResult<()> {
-    *out = (*t + phase).sin();
-    let t_step = frequency / env.sample_rate * 2.0 * std::f32::consts::PI;
     if *reset {
         *t = 0.0;
+        *out = 0.0;
     } else {
-        *t += t_step;
+        *t += frequency / env.sample_rate * 2.0 * std::f32::consts::PI;
+        *out = (*t + phase).sin();
     }
     *t %= 2.0 * std::f32::consts::PI;
 
