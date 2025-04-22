@@ -6,7 +6,7 @@ macro_rules! choose_node_generics {
     ($graph:expr, $signal_type:expr => $node_type:ident => $($options:ty)*) => {
         match $signal_type {
             $(
-                t if t == <$options>::signal_type() => $graph.add($node_type::<$options>::default()),
+                t if t == <$options>::signal_type() => $graph.node($node_type::<$options>::default()),
             )*
             _ => panic!("Unsupported signal type: {:?}", $signal_type),
         }
@@ -76,7 +76,7 @@ macro_rules! specific_binary_op_impl {
             b.signal_type(),
             "Signal types must match for this operation",
         );
-        let node = graph.add($op::default());
+        let node = graph.node($op::default());
         node.input(0).connect($self);
         node.input(1).connect(b);
         node
@@ -101,7 +101,7 @@ macro_rules! specific_unary_op_impl {
             "Signal type must be {} for this operation",
             stringify!($type),
         );
-        let node = graph.add($op::default());
+        let node = graph.node($op::default());
         node.input(0).connect($self);
         node
     }};
@@ -129,7 +129,7 @@ impl OutputExt for Output {
             i64::signal_type(),
             "RHS Signal type must be i64 for this operation",
         );
-        let node = graph.add(Powi::default());
+        let node = graph.node(Powi::default());
         node.input(0).connect(self);
         node.input(1).connect(b);
         node
@@ -300,7 +300,7 @@ impl OutputExt for Output {
             "Signal type must be {} for this operation",
             stringify!(T),
         );
-        let node = graph.add(Cast::<T, U>::default());
+        let node = graph.node(Cast::<T, U>::default());
         node.input(0).connect(self);
         node
     }
@@ -326,7 +326,7 @@ impl OutputExt for Output {
             f32::signal_type(),
             "RHS Signal type must be f32 for this operation",
         );
-        let node = graph.add(UnwrapOr::<f32>::default());
+        let node = graph.node(UnwrapOr::<f32>::default());
         node.input(0).connect(self);
         node.input(1).connect(b);
         node
