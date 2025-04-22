@@ -42,7 +42,7 @@ impl Metro {
 }
 
 #[processor(derive(Default))]
-pub fn decay_env(
+pub fn decay(
     env: ProcEnv,
     #[state] last_trig: &mut bool,
     #[state] value: &mut f32,
@@ -70,7 +70,7 @@ pub fn decay_env(
     Ok(())
 }
 
-impl DecayEnv {
+impl Decay {
     pub fn new(tau: f32) -> Self {
         Self {
             last_trig: false,
@@ -78,6 +78,173 @@ impl DecayEnv {
             time: 0.0,
             trig: false,
             tau,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Default, PartialEq)]
+enum AdsrState {
+    #[default]
+    Off,
+    Attack,
+    Decay,
+    Sustain,
+    Release,
+}
+
+#[processor(derive(Default))]
+pub fn adsr(
+    env: ProcEnv,
+    #[state] state: &mut AdsrState,
+    #[state] value: &mut f32,
+    #[state] time: &mut f32,
+
+    #[input] trig: &bool,
+    #[input] attack: &f32,
+    #[input] decay: &f32,
+    #[input] sustain: &f32,
+    #[input] release: &f32,
+
+    #[output] out: &mut f32,
+) -> ProcResult<()> {
+    match *state {
+        AdsrState::Off => {
+            *value = 0.0;
+            *time = 0.0;
+            if *trig {
+                *state = AdsrState::Attack;
+            }
+        }
+        AdsrState::Attack => {
+            if !trig {
+                *time = 0.0;
+                *state = AdsrState::Release;
+            } else if *time >= *attack {
+                *value = 1.0;
+                *time = 0.0;
+                *state = AdsrState::Decay;
+            } else {
+                *value = (*time / *attack).min(1.0);
+            }
+        }
+        AdsrState::Decay => {
+            if !trig {
+                *time = 0.0;
+                *state = AdsrState::Release;
+            } else if *time >= *decay {
+                *value = *sustain;
+                *time = 0.0;
+                *state = AdsrState::Sustain;
+            } else {
+                *value = 1.0 - (*time / *decay).min(1.0);
+            }
+        }
+        AdsrState::Sustain => {
+            if !*trig {
+                *time = 0.0;
+                *state = AdsrState::Release;
+            } else {
+                *value = *sustain;
+                *time = 0.0;
+            }
+        }
+        AdsrState::Release => {
+            if *trig {
+                *value = 0.0;
+                *time = 0.0;
+                *state = AdsrState::Attack;
+            } else if *time >= *release {
+                *state = AdsrState::Off;
+            } else {
+                *value = (*time / *release).min(1.0);
+            }
+        }
+    }
+
+    *time += env.sample_rate.recip();
+    *out = *value;
+
+    Ok(())
+}
+
+impl Adsr {
+    pub fn new(attack: f32, decay: f32, sustain: f32, release: f32) -> Self {
+        Self {
+            state: AdsrState::Off,
+            value: 0.0,
+            time: 0.0,
+            trig: false,
+            attack,
+            decay,
+            sustain,
+            release,
+        }
+    }
+}
+
+pub trait IntoPattern {
+    fn into_pattern(self) -> List<bool>;
+}
+
+impl IntoPattern for List<bool> {
+    fn into_pattern(self) -> List<bool> {
+        self
+    }
+}
+
+impl IntoPattern for &str {
+    fn into_pattern(self) -> List<bool> {
+        let mut list = List::with_capacity(self.len());
+        for c in self.chars() {
+            match c {
+                '.' | ' ' => list.push(false),
+                _ => list.push(true),
+            }
+        }
+        list
+    }
+}
+
+#[derive(Clone, Default)]
+struct PatternState {
+    pattern: List<bool>,
+    index: usize,
+}
+
+impl PatternState {
+    fn new(pat: impl IntoPattern) -> Self {
+        Self {
+            pattern: pat.into_pattern(),
+            index: 0,
+        }
+    }
+}
+
+#[processor(derive(Default))]
+pub fn pattern(
+    #[state] state: &mut PatternState,
+    #[input] trig: &bool,
+    #[output] out: &mut bool,
+    #[output] length: &mut i64,
+) -> ProcResult<()> {
+    *length = state.pattern.len() as i64;
+
+    if *trig && !state.pattern.is_empty() {
+        *out = state.pattern[state.index];
+        state.index += 1;
+        state.index %= state.pattern.len();
+    } else {
+        *out = false;
+    }
+
+    Ok(())
+}
+
+impl Pattern {
+    pub fn new(pat: impl IntoPattern) -> Self {
+        Self {
+            state: PatternState::new(pat),
+            trig: false,
         }
     }
 }
