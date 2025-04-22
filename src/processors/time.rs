@@ -30,6 +30,7 @@ pub fn metro(
 }
 
 impl Metro {
+    /// Constructs a new [`Metro`] processor with the given period between ticks.
     pub fn new(period: f32) -> Self {
         Self {
             last_time: 0.0,
@@ -38,6 +39,13 @@ impl Metro {
             period,
             reset: false,
         }
+    }
+
+    /// Constructs a new [`Metro`] processor from the given tempo (in BPM, or beats per minute) and TPB (number of ticks per beat).
+    /// The metronome will tick `bpm * tpb` times per minute.
+    pub fn from_tempo_and_ticks(bpm: f32, tpb: usize) -> Self {
+        assert_ne!(tpb, 0, "Ticks per beat mut be >= 1");
+        Self::new(60.0 / bpm / (tpb as f32))
     }
 }
 
@@ -197,7 +205,8 @@ impl IntoPattern for &str {
         let mut list = List::with_capacity(self.len());
         for c in self.chars() {
             match c {
-                '.' | ' ' => list.push(false),
+                '.' => list.push(false),
+                ' ' => {}
                 _ => list.push(true),
             }
         }
