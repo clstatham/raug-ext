@@ -90,24 +90,23 @@ impl Decay {
     }
 }
 
-#[derive(Clone, Copy, Default, PartialEq)]
+#[derive(Clone, Copy, Default, PartialEq, Debug)]
 enum AdsrState {
-    #[default]
-    Off,
     Attack,
     Decay,
+    #[default]
     Sustain,
     Release,
 }
 
-#[processor(derive(Default))]
+#[processor]
 pub fn adsr(
     env: ProcEnv,
     #[state] state: &mut AdsrState,
+    #[state] last_gate: &mut bool,
     #[state] value: &mut f32,
-    #[state] time: &mut f32,
 
-    #[input] trig: &bool,
+    #[input] gate: &bool,
     #[input] attack: &f32,
     #[input] decay: &f32,
     #[input] sustain: &f32,
@@ -115,77 +114,84 @@ pub fn adsr(
 
     #[output] out: &mut f32,
 ) -> ProcResult<()> {
-    match *state {
-        AdsrState::Off => {
-            *value = 0.0;
-            *time = 0.0;
-            if *trig {
-                *state = AdsrState::Attack;
-            }
-        }
+    let attack = attack * env.sample_rate;
+    let decay = decay * env.sample_rate;
+    let release = release * env.sample_rate;
+
+    if *gate && !*last_gate {
+        *value = 0.0;
+        *state = AdsrState::Attack;
+    } else if !*gate && *last_gate {
+        *state = AdsrState::Release;
+    }
+
+    let slope = match *state {
         AdsrState::Attack => {
-            if !trig {
-                *time = 0.0;
-                *state = AdsrState::Release;
-            } else if *time >= *attack {
-                *value = 1.0;
-                *time = 0.0;
-                *state = AdsrState::Decay;
+            if attack > 0.0 {
+                1.0 / attack
             } else {
-                *value = (*time / *attack).min(1.0);
+                1.0
             }
         }
         AdsrState::Decay => {
-            if !trig {
-                *time = 0.0;
-                *state = AdsrState::Release;
-            } else if *time >= *decay {
-                *value = *sustain;
-                *time = 0.0;
-                *state = AdsrState::Sustain;
+            if decay > 0.0 {
+                -(1.0 - *sustain) / decay
             } else {
-                *value = 1.0 - (*time / *decay).min(1.0);
+                -1.0
             }
         }
-        AdsrState::Sustain => {
-            if !*trig {
-                *time = 0.0;
-                *state = AdsrState::Release;
-            } else {
-                *value = *sustain;
-                *time = 0.0;
-            }
-        }
+        AdsrState::Sustain => 0.0,
         AdsrState::Release => {
-            if *trig {
-                *value = 0.0;
-                *time = 0.0;
-                *state = AdsrState::Attack;
-            } else if *time >= *release {
-                *state = AdsrState::Off;
+            if release > 0.0 {
+                -(1.0 - *sustain) / release
             } else {
-                *value = (*time / *release).min(1.0);
+                -1.0
             }
         }
+    };
+
+    *value += slope;
+
+    if *state == AdsrState::Attack && *value >= 1.0 {
+        *value = 1.0;
+        *state = AdsrState::Decay;
+    } else if *state == AdsrState::Decay && *value <= *sustain {
+        *value = *sustain;
+        *state = AdsrState::Sustain;
+    } else if *state == AdsrState::Release && *value <= 0.0 {
+        *value = 0.0;
+        *state = AdsrState::Sustain;
     }
 
-    *time += env.sample_rate.recip();
+    *last_gate = *gate;
     *out = *value;
 
     Ok(())
 }
 
+impl Default for Adsr {
+    fn default() -> Self {
+        Self {
+            state: AdsrState::Sustain,
+            last_gate: false,
+            value: 0.0,
+            gate: false,
+            attack: 0.0,
+            decay: 0.0,
+            sustain: 1.0,
+            release: 0.0,
+        }
+    }
+}
+
 impl Adsr {
     pub fn new(attack: f32, decay: f32, sustain: f32, release: f32) -> Self {
         Self {
-            state: AdsrState::Off,
-            value: 0.0,
-            time: 0.0,
-            trig: false,
             attack,
             decay,
             sustain,
             release,
+            ..Default::default()
         }
     }
 }

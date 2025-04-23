@@ -229,3 +229,34 @@ pub fn toggle(
 
     Ok(())
 }
+
+#[processor(derive(Default))]
+pub fn trig_to_gate(
+    env: ProcEnv,
+    #[state] t: &mut f32,
+    #[state] last_trig: &mut bool,
+    #[state] state: &mut bool,
+    #[input] trig: &bool,
+    #[input] length: &f32,
+    #[output] gate: &mut bool,
+) -> ProcResult<()> {
+    let length_samples = *length * env.sample_rate;
+    if *trig && !*last_trig {
+        // rising edge
+        *t = 0.0;
+        *state = true;
+    } else if !*trig && *last_trig {
+        // falling edge
+        *t = 0.0;
+    }
+
+    if *state {
+        *state = *t < length_samples;
+        *t += 1.0;
+    }
+
+    *gate = *state;
+    *last_trig = *trig;
+
+    Ok(())
+}

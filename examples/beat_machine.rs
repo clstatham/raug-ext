@@ -1,10 +1,37 @@
 use raug::prelude::*;
 use raug_ext::prelude::*;
 
+#[allow(clippy::too_many_arguments)]
+pub fn supersaw(
+    graph: &Graph,
+    pitch: impl IntoOutput,
+    detune: impl IntoOutput,
+    gate: impl IntoOutput,
+    attack: impl IntoOutputOpt,
+    decay: impl IntoOutputOpt,
+    sustain: impl IntoOutputOpt,
+    release: impl IntoOutputOpt,
+) -> Node {
+    let pitch = pitch.into_output(graph);
+    let gate = gate.into_output(graph);
+    let detune = detune.into_output(graph);
+
+    let freq1 = PitchToFreq::default().node(graph, &pitch + &detune);
+    let freq2 = PitchToFreq::default().node(graph, &pitch - &detune);
+
+    let saw1 = BlSawOscillator::default().node(graph, freq1);
+    let saw2 = BlSawOscillator::default().node(graph, freq2);
+
+    let saws = (saw1 + saw2) * 0.5;
+
+    let adsr = Adsr::default().node(graph, gate, attack, decay, sustain, release);
+    saws * adsr
+}
+
 fn main() {
     let graph = Graph::new();
 
-    let clock = Metro::from_tempo_and_ticks(144.0, 4) // 144bpm, 4 ticks per beat
+    let clock = Metro::from_tempo_and_ticks(120.0, 4) // 144bpm, 4 ticks per beat
         .node(&graph, (), ());
 
     let bd_pat = BoolPattern::new("x . . . x . . . x . . . x . . . ").node(&graph, &clock);
@@ -19,7 +46,22 @@ fn main() {
         .node(&graph, &sd_pat[0], ());
     let sd = &sd[0] * sd_vel_pat[0].cast::<i64, f32>();
 
-    let mix = &bd[0] + &sd[0];
+    let saw_pat = BoolPattern::new("x . x . x . x .").node(&graph, &clock);
+    let base = 32;
+    let saw_notes = &IntPattern::new([0, 12, 0, 12]).node(&graph, &saw_pat[0])[0] + base;
+    let saw = supersaw(
+        &graph,
+        saw_notes[0].cast::<i64, f32>(),
+        0.1,
+        saw_pat[0].trig_to_gate(0.1),
+        0.0,
+        0.5,
+        0.0,
+        1.0,
+    );
+
+    let mix = &bd[0] + &sd[0] + &saw[0] * 0.2;
+    let mix = mix * 0.5;
 
     graph.dac(&mix);
     graph.dac(&mix);

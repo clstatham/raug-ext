@@ -52,6 +52,7 @@ pub trait OutputExt {
     fn ne<T: Signal + PartialOrd>(&self, b: impl IntoOutput) -> Node;
 
     fn toggle(&self) -> Node;
+    fn trig_to_gate(&self, length: impl IntoOutput) -> Node;
 }
 
 macro_rules! generic_binary_op_impl {
@@ -375,6 +376,20 @@ impl OutputExt for Output {
         );
         let node = graph.node(Toggle::default());
         node.input(0).connect(self);
+        node
+    }
+
+    #[track_caller]
+    fn trig_to_gate(&self, length: impl IntoOutput) -> Node {
+        let graph = self.graph();
+        assert_eq!(
+            self.signal_type(),
+            bool::signal_type(),
+            "Signal type must be bool for this operation"
+        );
+        let node = graph.node(TrigToGate::default());
+        node.input(0).connect(self);
+        node.input(1).connect(length);
         node
     }
 }

@@ -252,3 +252,9 @@ pub fn smooth_step(
     *out = t.clamp(0.0, 1.0).powf(3.0) * (t * (t * 6.0 - 15.0) + 10.0);
     Ok(())
 }
+
+#[processor(derive(Default))]
+pub fn pitch_to_freq(#[input] pitch: &f32, #[output] freq: &mut f32) -> ProcResult<()> {
+    *freq = 440.0f32 * 2.0f32.powf((*pitch - 69.0f32) / 12.0);
+    Ok(())
+}
