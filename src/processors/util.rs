@@ -214,3 +214,18 @@ pub fn signal_channel<T: Signal + Default + Debug>() -> (Tx<T>, Rx<T>) {
         },
     )
 }
+
+#[processor(derive(Default))]
+pub fn toggle(
+    #[state] state: &mut bool,
+    #[input] trig: &bool,
+    #[output] out: &mut bool,
+) -> ProcResult<()> {
+    if *trig {
+        *state = !*state;
+    }
+
+    *out = *state;
+
+    Ok(())
+}

@@ -34,21 +34,24 @@ impl SampleStorage {
         Ok(Self { buf, sample_rate })
     }
 
+    #[inline]
     pub fn len(&self) -> usize {
         self.buf.len()
     }
 
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.buf.is_empty()
     }
 
-    pub fn resample_linear(&mut self, new_sample_rate: f32) {
+    pub fn resample(&mut self, new_sample_rate: f32) {
         if new_sample_rate != self.sample_rate && new_sample_rate > 0.0 {
-            self.buf = resample_linear(&self.buf, self.sample_rate, new_sample_rate);
+            self.buf = resample(&self.buf, self.sample_rate, new_sample_rate);
             self.sample_rate = new_sample_rate;
         }
     }
 
+    #[inline]
     pub fn get_interpolated(&self, index: f32) -> f32 {
         let floor = index.floor() as usize;
         let ceil = index.ceil() as usize;
@@ -89,7 +92,7 @@ pub fn sample(
     Ok(())
 }
 
-fn resample_linear(input: &[f32], input_rate: f32, output_rate: f32) -> Vec<f32> {
+fn resample(input: &[f32], input_rate: f32, output_rate: f32) -> Vec<f32> {
     samplerate::convert(
         input_rate as u32,
         output_rate as u32,
@@ -101,7 +104,7 @@ fn resample_linear(input: &[f32], input_rate: f32, output_rate: f32) -> Vec<f32>
 }
 
 fn sample_allocate(proc: &mut Sample, sample_rate: f32, _block_size: usize) {
-    proc.storage.resample_linear(sample_rate);
+    proc.storage.resample(sample_rate);
 }
 
 impl Sample {
@@ -192,5 +195,5 @@ impl Default for OneShot {
 }
 
 fn one_shot_allocate(proc: &mut OneShot, sample_rate: f32, _block_size: usize) {
-    proc.storage.resample_linear(sample_rate);
+    proc.storage.resample(sample_rate);
 }

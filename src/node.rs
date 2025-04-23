@@ -43,6 +43,15 @@ pub trait OutputExt {
     fn cast<T: Signal + CastTo<U> + Default, U: Signal + Default>(&self) -> Node;
     fn some(&self) -> Node;
     fn unwrap_or(&self, b: impl IntoOutput) -> Node;
+
+    fn lt<T: Signal + PartialOrd>(&self, b: impl IntoOutput) -> Node;
+    fn gt<T: Signal + PartialOrd>(&self, b: impl IntoOutput) -> Node;
+    fn le<T: Signal + PartialOrd>(&self, b: impl IntoOutput) -> Node;
+    fn ge<T: Signal + PartialOrd>(&self, b: impl IntoOutput) -> Node;
+    fn eq<T: Signal + PartialOrd>(&self, b: impl IntoOutput) -> Node;
+    fn ne<T: Signal + PartialOrd>(&self, b: impl IntoOutput) -> Node;
+
+    fn toggle(&self) -> Node;
 }
 
 macro_rules! generic_binary_op_impl {
@@ -331,202 +340,41 @@ impl OutputExt for Output {
         node.input(1).connect(b);
         node
     }
-}
 
-impl OutputExt for Node {
-    #[inline]
-    #[track_caller]
-    fn powf(&self, b: impl IntoOutput) -> Node {
-        self.assert_single_output("powf");
-        self.output(0).powf(b)
+    fn lt<T: Signal + PartialOrd>(&self, b: impl IntoOutput) -> Node {
+        generic_binary_op_impl!(self, b, Lt => f32 i64)
     }
 
-    #[inline]
-    #[track_caller]
-    fn powi(&self, b: impl IntoOutput) -> Node {
-        self.assert_single_output("powi");
-        self.output(0).powi(b)
+    fn gt<T: Signal + PartialOrd>(&self, b: impl IntoOutput) -> Node {
+        generic_binary_op_impl!(self, b, Gt => f32 i64)
     }
 
-    #[inline]
-    #[track_caller]
-    fn sqrt(&self) -> Node {
-        self.assert_single_output("sqrt");
-        self.output(0).sqrt()
+    fn le<T: Signal + PartialOrd>(&self, b: impl IntoOutput) -> Node {
+        generic_binary_op_impl!(self, b, Le => f32 i64)
     }
 
-    #[inline]
-    #[track_caller]
-    fn sin(&self) -> Node {
-        self.assert_single_output("sin");
-        self.output(0).sin()
+    fn ge<T: Signal + PartialOrd>(&self, b: impl IntoOutput) -> Node {
+        generic_binary_op_impl!(self, b, Ge => f32 i64)
     }
 
-    #[inline]
-    #[track_caller]
-    fn cos(&self) -> Node {
-        self.assert_single_output("cos");
-        self.output(0).cos()
+    fn eq<T: Signal + PartialOrd>(&self, b: impl IntoOutput) -> Node {
+        generic_binary_op_impl!(self, b, Eq => f32 i64)
     }
 
-    #[inline]
-    #[track_caller]
-    fn tan(&self) -> Node {
-        self.assert_single_output("tan");
-        self.output(0).tan()
+    fn ne<T: Signal + PartialOrd>(&self, b: impl IntoOutput) -> Node {
+        generic_binary_op_impl!(self, b, Ne => f32 i64)
     }
 
-    #[inline]
     #[track_caller]
-    fn asin(&self) -> Node {
-        self.assert_single_output("asin");
-        self.output(0).asin()
-    }
-
-    #[inline]
-    #[track_caller]
-    fn acos(&self) -> Node {
-        self.assert_single_output("acos");
-        self.output(0).acos()
-    }
-
-    #[inline]
-    #[track_caller]
-    fn atan(&self) -> Node {
-        self.assert_single_output("atan");
-        self.output(0).atan()
-    }
-
-    #[inline]
-    #[track_caller]
-    fn sinh(&self) -> Node {
-        self.assert_single_output("sinh");
-        self.output(0).sinh()
-    }
-
-    #[inline]
-    #[track_caller]
-    fn cosh(&self) -> Node {
-        self.assert_single_output("cosh");
-        self.output(0).cosh()
-    }
-
-    #[inline]
-    #[track_caller]
-    fn tanh(&self) -> Node {
-        self.assert_single_output("tanh");
-        self.output(0).tanh()
-    }
-
-    #[inline]
-    #[track_caller]
-    fn atan2(&self, b: impl IntoOutput) -> Node {
-        self.assert_single_output("atan2");
-        self.output(0).atan2(b)
-    }
-
-    #[inline]
-    #[track_caller]
-    fn hypot(&self, b: impl IntoOutput) -> Node {
-        self.assert_single_output("hypot");
-        self.output(0).hypot(b)
-    }
-
-    #[inline]
-    #[track_caller]
-    fn abs(&self) -> Node {
-        self.assert_single_output("abs");
-        self.output(0).abs()
-    }
-
-    #[inline]
-    #[track_caller]
-    fn ceil(&self) -> Node {
-        self.assert_single_output("ceil");
-        self.output(0).ceil()
-    }
-
-    #[inline]
-    #[track_caller]
-    fn floor(&self) -> Node {
-        self.assert_single_output("floor");
-        self.output(0).floor()
-    }
-
-    #[inline]
-    #[track_caller]
-    fn round(&self) -> Node {
-        self.assert_single_output("round");
-        self.output(0).round()
-    }
-
-    #[inline]
-    #[track_caller]
-    fn trunc(&self) -> Node {
-        self.assert_single_output("trunc");
-        self.output(0).trunc()
-    }
-
-    #[inline]
-    #[track_caller]
-    fn fract(&self) -> Node {
-        self.assert_single_output("fract");
-        self.output(0).fract()
-    }
-
-    #[inline]
-    #[track_caller]
-    fn recip(&self) -> Node {
-        self.assert_single_output("recip");
-        self.output(0).recip()
-    }
-
-    #[inline]
-    #[track_caller]
-    fn signum(&self) -> Node {
-        self.assert_single_output("signum");
-        self.output(0).signum()
-    }
-
-    #[inline]
-    #[track_caller]
-    fn max(&self, b: impl IntoOutput) -> Node {
-        self.assert_single_output("max");
-        self.output(0).max(b)
-    }
-
-    #[inline]
-    #[track_caller]
-    fn min(&self, b: impl IntoOutput) -> Node {
-        self.assert_single_output("min");
-        self.output(0).min(b)
-    }
-
-    #[inline]
-    #[track_caller]
-    fn clamp(&self, min: impl IntoOutput, max: impl IntoOutput) -> Node {
-        self.assert_single_output("clamp");
-        self.output(0).clamp(min, max)
-    }
-
-    #[inline]
-    #[track_caller]
-    fn cast<T: Signal + CastTo<U> + Default, U: Signal + Default>(&self) -> Node {
-        self.assert_single_output("cast");
-        self.output(0).cast::<T, U>()
-    }
-
-    #[inline]
-    #[track_caller]
-    fn some(&self) -> Node {
-        self.assert_single_output("some");
-        self.output(0).some()
-    }
-
-    #[inline]
-    #[track_caller]
-    fn unwrap_or(&self, b: impl IntoOutput) -> Node {
-        self.assert_single_output("unwrap_or");
-        self.output(0).unwrap_or(b)
+    fn toggle(&self) -> Node {
+        let graph = self.graph();
+        assert_eq!(
+            self.signal_type(),
+            bool::signal_type(),
+            "Signal type must be bool for this operation"
+        );
+        let node = graph.node(Toggle::default());
+        node.input(0).connect(self);
+        node
     }
 }

@@ -190,23 +190,34 @@ impl Adsr {
     }
 }
 
-pub trait IntoPattern {
-    fn into_pattern(self) -> List<bool>;
+pub trait IntoPattern<T: Signal> {
+    fn into_pattern(self) -> List<T>;
 }
 
-impl IntoPattern for List<bool> {
-    fn into_pattern(self) -> List<bool> {
+impl<T: Signal> IntoPattern<T> for List<T> {
+    fn into_pattern(self) -> List<T> {
         self
     }
 }
 
-impl IntoPattern for &str {
+impl<T: Signal> IntoPattern<T> for &[T] {
+    fn into_pattern(self) -> List<T> {
+        List::from_slice(self)
+    }
+}
+
+impl<T: Signal, const N: usize> IntoPattern<T> for [T; N] {
+    fn into_pattern(self) -> List<T> {
+        List::from_slice(&self)
+    }
+}
+
+impl IntoPattern<bool> for &str {
     fn into_pattern(self) -> List<bool> {
         let mut list = List::with_capacity(self.len());
-        for c in self.chars() {
-            match c {
-                '.' => list.push(false),
-                ' ' => {}
+        for slc in self.split_ascii_whitespace() {
+            match slc {
+                "." => list.push(false),
                 _ => list.push(true),
             }
         }
@@ -214,45 +225,80 @@ impl IntoPattern for &str {
     }
 }
 
-#[derive(Clone, Default)]
-struct PatternState {
-    pattern: List<bool>,
-    index: usize,
-}
-
-impl PatternState {
-    fn new(pat: impl IntoPattern) -> Self {
-        Self {
-            pattern: pat.into_pattern(),
-            index: 0,
-        }
-    }
-}
-
 #[processor(derive(Default))]
-pub fn pattern(
-    #[state] state: &mut PatternState,
+pub fn bool_pattern(
+    #[state] pattern: &mut List<bool>,
+    #[state] index: &mut usize,
     #[input] trig: &bool,
     #[output] out: &mut bool,
     #[output] length: &mut i64,
 ) -> ProcResult<()> {
-    *length = state.pattern.len() as i64;
+    *length = pattern.len() as i64;
 
-    if *trig && !state.pattern.is_empty() {
-        *out = state.pattern[state.index];
-        state.index += 1;
-        state.index %= state.pattern.len();
-    } else {
-        *out = false;
+    if !pattern.is_empty() {
+        if *trig {
+            *out = pattern[*index];
+            *index += 1;
+            *index %= pattern.len();
+        } else {
+            *out = false;
+        }
     }
 
     Ok(())
 }
 
-impl Pattern {
-    pub fn new(pat: impl IntoPattern) -> Self {
+impl BoolPattern {
+    pub fn new(pat: impl IntoPattern<bool>) -> Self {
         Self {
-            state: PatternState::new(pat),
+            pattern: pat.into_pattern(),
+            index: 0,
+            trig: false,
+        }
+    }
+}
+
+impl IntoPattern<i64> for &str {
+    fn into_pattern(self) -> List<i64> {
+        let mut list = List::default();
+        for slc in self.split_ascii_whitespace() {
+            match slc.parse() {
+                Ok(i) => list.push(i),
+                Err(e) => panic!("Invalid pattern element `{slc}`: {e}"),
+            }
+        }
+        list
+    }
+}
+
+#[processor(derive(Default))]
+pub fn int_pattern(
+    #[state] pattern: &mut List<i64>,
+    #[state] index: &mut usize,
+    #[input] trig: &bool,
+    #[output] out: &mut i64,
+    #[output] length: &mut i64,
+) -> ProcResult<()> {
+    *length = pattern.len() as i64;
+
+    if !pattern.is_empty() {
+        *out = pattern[*index];
+        if *trig {
+            *index += 1;
+            *index %= pattern.len();
+        }
+    }
+
+    Ok(())
+}
+
+impl IntPattern {
+    pub fn new(pat: impl IntoPattern<i64>) -> Self {
+        let pattern = pat.into_pattern();
+        let index = pattern.len() - 1;
+        Self {
+            pattern,
+            index,
             trig: false,
         }
     }
