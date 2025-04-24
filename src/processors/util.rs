@@ -1,4 +1,8 @@
-use std::{fmt::Debug, marker::PhantomData};
+use std::{
+    fmt::Debug,
+    marker::PhantomData,
+    sync::{Arc, Mutex},
+};
 
 use crossbeam_channel::{Receiver, Sender};
 use rand::seq::IndexedRandom;
@@ -170,49 +174,126 @@ where
 }
 
 #[derive(Error, Debug)]
-pub enum ChannelError<T: Signal + Debug> {
+pub enum ChannelError {
     #[error("Failed to send message")]
-    SendError(#[from] crossbeam_channel::TrySendError<T>),
+    SendError,
     #[error("Failed to receive message")]
     ReceiveError(#[from] crossbeam_channel::TryRecvError),
 }
 
-#[processor]
+#[processor(derive(Debug))]
 pub fn tx<T>(#[state] tx: &mut Sender<T>, #[input] input: &T) -> ProcResult<()>
 where
-    T: Signal + Default + Debug,
+    T: Signal,
 {
-    if let Err(e) = tx.try_send(input.clone()) {
-        return Err(ProcessorError::new(ChannelError::SendError(e)));
+    if tx.try_send(input.clone()).is_err() {
+        return Err(ProcessorError::new(ChannelError::SendError));
     }
     Ok(())
 }
 
-#[processor]
-pub fn rx<T>(#[state] rx: &mut Receiver<T>, #[output] out: &mut T) -> ProcResult<()>
+#[processor(derive(Debug))]
+pub fn rx<T>(
+    #[state] rx: &mut Receiver<T>,
+    #[state] last: &mut T,
+    #[output] out: &mut T,
+) -> ProcResult<()>
 where
-    T: Signal + Default,
+    T: Signal,
 {
-    match rx.try_recv() {
-        Ok(value) => *out = value,
-        Err(_) => *out = T::default(),
+    if let Ok(value) = rx.try_recv() {
+        last.clone_from(&value);
     }
+    out.clone_from(last);
     Ok(())
 }
 
-pub fn signal_channel<T: Signal + Default + Debug>() -> (Tx<T>, Rx<T>) {
-    let (tx, rx) = crossbeam_channel::unbounded();
-    (
-        Tx {
-            tx,
-            input: T::default(),
-            _marker0: PhantomData,
-        },
-        Rx {
-            rx,
-            _marker0: PhantomData,
-        },
-    )
+#[derive(Debug)]
+pub struct Channel<T: Signal> {
+    tx: Arc<Mutex<Tx<T>>>,
+    rx: Arc<Mutex<Rx<T>>>,
+}
+
+impl<T: Signal> Channel<T> {
+    pub fn new(init: T) -> Self {
+        let (tx, rx) = crossbeam_channel::unbounded();
+        Channel::from_tx_rx(
+            Tx {
+                tx,
+                input: init.clone(),
+                _marker0: PhantomData,
+            },
+            Rx {
+                rx,
+                last: init.clone(),
+                _marker0: PhantomData,
+            },
+        )
+    }
+
+    pub(crate) fn from_tx_rx(tx: Tx<T>, rx: Rx<T>) -> Self {
+        Channel {
+            tx: Arc::new(Mutex::new(tx)),
+            rx: Arc::new(Mutex::new(rx)),
+        }
+    }
+
+    #[inline]
+    pub fn send(&self, value: T) -> Result<(), ChannelError> {
+        let tx = self.tx.lock().unwrap();
+        if tx.tx.try_send(value).is_err() {
+            return Err(ChannelError::SendError);
+        }
+        Ok(())
+    }
+
+    #[inline]
+    pub fn recv(&self) -> T {
+        let mut rx = self.rx.lock().unwrap();
+        if let Ok(value) = rx.rx.try_recv() {
+            rx.last.clone_from(&value);
+        }
+        rx.last.clone()
+    }
+}
+
+impl<T: Signal> Clone for Channel<T> {
+    fn clone(&self) -> Self {
+        Channel {
+            tx: Arc::clone(&self.tx),
+            rx: Arc::clone(&self.rx),
+        }
+    }
+}
+
+impl<T: Signal> Processor for Channel<T> {
+    fn name(&self) -> &str {
+        "Channel"
+    }
+
+    fn input_spec(&self) -> Vec<SignalSpec> {
+        vec![SignalSpec::new("input", T::signal_type())]
+    }
+
+    fn output_spec(&self) -> Vec<SignalSpec> {
+        vec![SignalSpec::new("out", T::signal_type())]
+    }
+
+    fn create_output_buffers(&self, size: usize) -> Vec<AnyBuffer> {
+        vec![AnyBuffer::zeros::<T>(size)]
+    }
+
+    fn process(
+        &mut self,
+        inputs: ProcessorInputs,
+        mut outputs: ProcessorOutputs,
+    ) -> Result<(), ProcessorError> {
+        for sample_index in 0..inputs.block_size() {
+            outputs.set_output_as(0, sample_index, &self.recv())?;
+        }
+
+        Ok(())
+    }
 }
 
 #[processor(derive(Default))]

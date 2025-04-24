@@ -29,9 +29,11 @@ pub fn supersaw(
 }
 
 fn main() {
+    env_logger::init();
+
     let graph = Graph::new();
 
-    let clock = Metro::from_tempo_and_ticks(120.0, 4) // 144bpm, 4 ticks per beat
+    let clock = Metro::from_tempo_and_ticks(144.0, 4) // 144bpm, 4 ticks per beat
         .node(&graph, (), ());
 
     let bd_pat = BoolPattern::new("x . . . x . . . x . . . x . . . ").node(&graph, &clock);
@@ -47,31 +49,44 @@ fn main() {
     let sd = &sd[0] * sd_vel_pat[0].cast::<i64, f32>();
 
     let saw_pat = BoolPattern::new("x . x . x . x .").node(&graph, &clock);
-    let base = 32;
-    let saw_notes = &IntPattern::new([0, 12, 0, 12]).node(&graph, &saw_pat[0])[0] + base;
+    let base = 40;
+    let saw_notes = IntPattern::new([0, 3, 7]).node(&graph, &saw_pat[0]);
+    let saw_notes = &saw_notes[0] + base;
     let saw = supersaw(
         &graph,
         saw_notes[0].cast::<i64, f32>(),
         0.1,
         saw_pat[0].trig_to_gate(0.1),
         0.0,
-        0.5,
+        0.2,
         0.0,
         1.0,
     );
 
     let mix = &bd[0] + &sd[0] + &saw[0] * 0.2;
-    let mix = mix * 0.5;
+    // let mix = mix * 0.5;
 
-    graph.dac(&mix);
-    graph.dac(&mix);
+    let master = PeakLimiter::default().node(&graph, mix, (), (), ());
+
+    graph.dac(&master);
+    graph.dac(&master);
 
     graph
-        .play_until(CpalStream::default(), || {
-            std::io::stdin().read_line(&mut String::new()).ok();
-            true
-        })
-        .unwrap()
-        .join()
+        .play_for(
+            CpalStream::default(),
+            // WavFileOutStream::new(
+            //     "rave.wav",
+            //     48000.0,
+            //     512,
+            //     0,
+            //     1,
+            //     Some(Duration::from_secs(10)),
+            // ),
+            Duration::from_secs(10),
+            // || {
+            //     std::io::stdin().read_line(&mut String::new()).ok();
+            //     true
+            // },
+        )
         .unwrap();
 }

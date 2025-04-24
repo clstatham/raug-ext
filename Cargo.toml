@@ -10,3 +10,6 @@ rand = "0.9"
 raug = { path = "../raug" }
 samplerate = "0.2"
 thiserror = "2.0"
+
+[dev-dependencies]
+env_logger = "*"
