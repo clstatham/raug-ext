@@ -72,25 +72,5 @@ fn main() {
     graph.dac(&master);
 
     let stream = CpalOut::default().record_to_wav("recording.wav");
-    let handle = graph.play(stream).unwrap();
-    handle.run_for(Duration::from_secs(10)).unwrap();
-
-    // graph
-    //     .play_for(
-    //         CpalStream::default(),
-    //         // WavFileOutStream::new(
-    //         //     "rave.wav",
-    //         //     48000.0,
-    //         //     512,
-    //         //     0,
-    //         //     1,
-    //         //     Some(Duration::from_secs(10)),
-    //         // ),
-    //         Duration::from_secs(10),
-    //         // || {
-    //         //     std::io::stdin().read_line(&mut String::new()).ok();
-    //         //     true
-    //         // },
-    //     )
-    //     .unwrap();
+    graph.play_for(stream, Duration::from_secs(10)).unwrap();
 }
