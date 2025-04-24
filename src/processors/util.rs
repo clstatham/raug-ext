@@ -266,6 +266,12 @@ impl<T: Signal> Clone for Channel<T> {
     }
 }
 
+impl<T: Signal + Default> Default for Channel<T> {
+    fn default() -> Self {
+        Self::new(T::default())
+    }
+}
+
 impl<T: Signal> Processor for Channel<T> {
     fn name(&self) -> &str {
         "Channel"

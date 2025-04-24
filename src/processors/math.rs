@@ -254,6 +254,20 @@ pub fn smooth_step(
 }
 
 #[processor(derive(Default))]
+pub fn smooth(
+    #[state] x: &mut f32,
+    #[input] input: &f32,
+    #[input] factor: &f32,
+    #[output] out: &mut f32,
+) -> ProcResult<()> {
+    let factor = factor.clamp(0.0, 1.0);
+    *x = *x + (*input - *x) * factor;
+    *out = *x;
+
+    Ok(())
+}
+
+#[processor(derive(Default))]
 pub fn pitch_to_freq(#[input] pitch: &f32, #[output] freq: &mut f32) -> ProcResult<()> {
     *freq = 440.0f32 * 2.0f32.powf((*pitch - 69.0f32) / 12.0);
     Ok(())
