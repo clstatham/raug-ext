@@ -9,47 +9,15 @@ use rand::seq::IndexedRandom;
 use raug::prelude::*;
 use thiserror::Error;
 
-pub trait CastTo<T> {
-    fn cast(&self) -> T;
-}
-
-impl CastTo<f32> for f64 {
-    fn cast(&self) -> f32 {
-        *self as f32
-    }
-}
-
-impl CastTo<f64> for f32 {
-    fn cast(&self) -> f64 {
-        *self as f64
-    }
-}
-
-impl CastTo<i64> for f64 {
-    fn cast(&self) -> i64 {
-        *self as i64
-    }
-}
-
-impl CastTo<i64> for f32 {
-    fn cast(&self) -> i64 {
-        *self as i64
-    }
-}
-
-impl CastTo<f32> for i64 {
-    fn cast(&self) -> f32 {
-        *self as f32
-    }
+#[processor(derive(Default))]
+pub fn as_bool(#[input] input: &f32, #[output] out: &mut bool) -> ProcResult<()> {
+    *out = input.as_bool();
+    Ok(())
 }
 
 #[processor(derive(Default))]
-pub fn cast<T, U>(#[input] a: &T, #[output] out: &mut U) -> ProcResult<()>
-where
-    T: Signal + CastTo<U>,
-    U: Signal + Default,
-{
-    *out = a.cast();
+pub fn as_float(#[input] input: &bool, #[output] out: &mut f32) -> ProcResult<()> {
+    *out = if *input { 1.0 } else { 0.0 };
     Ok(())
 }
 

@@ -10,18 +10,19 @@ pub enum ListError {
 #[processor(derive(Default))]
 pub fn get<T>(
     #[input] list: &List<T>,
-    #[input] index: &i64,
+    #[input] index: &f32,
     #[output] out: &mut T,
 ) -> ProcResult<()>
 where
     T: Signal + Default,
 {
-    if *index < 0 || *index >= list.len() as i64 {
+    let index = *index as i32;
+    if index < 0 || index >= list.len() as i32 {
         return Err(ProcessorError::new(ListError::IndexOutOfBounds(
-            *index as usize,
+            index as usize,
         )));
     }
 
-    out.clone_from(&list[*index as usize]);
+    out.clone_from(&list[index as usize]);
     Ok(())
 }

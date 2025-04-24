@@ -42,19 +42,19 @@ fn main() {
         .node(&graph, &bd_pat[0], ());
 
     let sd_pat = BoolPattern::new(". . . . x . . . . . . . x . . x ").node(&graph, &clock);
-    let sd_vel_pat = IntPattern::new([2, 2, 1]).node(&graph, &sd_pat[0]);
+    let sd_vel_pat = Pattern::new([2, 2, 1]).node(&graph, &sd_pat[0]);
     let sd = OneShot::load("examples/assets/sd.wav")
         .unwrap()
         .node(&graph, &sd_pat[0], ());
-    let sd = &sd[0] * sd_vel_pat[0].cast::<i64, f32>();
+    let sd = &sd[0] * &sd_vel_pat[0];
 
     let saw_pat = BoolPattern::new("x . x . x . x .").node(&graph, &clock);
     let base = 40;
-    let saw_notes = IntPattern::new([0, 3, 7]).node(&graph, &saw_pat[0]);
+    let saw_notes = Pattern::new([0, 3, 7]).node(&graph, &saw_pat[0]);
     let saw_notes = &saw_notes[0] + base;
     let saw = supersaw(
         &graph,
-        saw_notes[0].cast::<i64, f32>(),
+        &saw_notes[0],
         0.1,
         saw_pat[0].trig_to_gate(0.1),
         0.0,

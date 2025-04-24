@@ -15,7 +15,6 @@ macro_rules! choose_node_generics {
 
 pub trait OutputExt {
     fn powf(&self, b: impl IntoOutput) -> Node;
-    fn powi(&self, b: impl IntoOutput) -> Node;
     fn sqrt(&self) -> Node;
     fn sin(&self) -> Node;
     fn cos(&self) -> Node;
@@ -40,7 +39,8 @@ pub trait OutputExt {
     fn min(&self, b: impl IntoOutput) -> Node;
     fn clamp(&self, min: impl IntoOutput, max: impl IntoOutput) -> Node;
 
-    fn cast<T: Signal + CastTo<U> + Default, U: Signal + Default>(&self) -> Node;
+    fn as_float(&self) -> Node;
+    fn as_bool(&self) -> Node;
     fn some(&self) -> Node;
     fn unwrap_or(&self, b: impl IntoOutput) -> Node;
 
@@ -123,27 +123,6 @@ impl OutputExt for Output {
     #[track_caller]
     fn powf(&self, b: impl IntoOutput) -> Node {
         specific_binary_op_impl!(self, b, Powf => f32)
-    }
-
-    #[inline]
-    #[track_caller]
-    fn powi(&self, b: impl IntoOutput) -> Node {
-        let graph = self.graph();
-        let b = b.into_output(graph);
-        assert_eq!(
-            self.signal_type(),
-            f32::signal_type(),
-            "LHS Signal type must be f32 for this operation",
-        );
-        assert_eq!(
-            b.signal_type(),
-            i64::signal_type(),
-            "RHS Signal type must be i64 for this operation",
-        );
-        let node = graph.node(Powi::default());
-        node.input(0).connect(self);
-        node.input(1).connect(b);
-        node
     }
 
     #[inline]
@@ -269,13 +248,13 @@ impl OutputExt for Output {
     #[inline]
     #[track_caller]
     fn max(&self, b: impl IntoOutput) -> Node {
-        generic_binary_op_impl!(self, b, Max => f32 i64)
+        generic_binary_op_impl!(self, b, Max => f32)
     }
 
     #[inline]
     #[track_caller]
     fn min(&self, b: impl IntoOutput) -> Node {
-        generic_binary_op_impl!(self, b, Min => f32 i64)
+        generic_binary_op_impl!(self, b, Min => f32)
     }
 
     #[inline]
@@ -294,7 +273,7 @@ impl OutputExt for Output {
             max.signal_type(),
             "Signal types must match for this operation",
         );
-        let node = choose_node_generics!(graph, self.signal_type() => Clamp => f32 i64);
+        let node = choose_node_generics!(graph, self.signal_type() => Clamp => f32);
         node.input(0).connect(self);
         node.input(1).connect(min);
         node.input(2).connect(max);
@@ -303,15 +282,39 @@ impl OutputExt for Output {
 
     #[inline]
     #[track_caller]
-    fn cast<T: Signal + CastTo<U> + Default, U: Signal + Default>(&self) -> Node {
+    fn as_bool(&self) -> Node {
+        if self.signal_type() == bool::signal_type() {
+            return self.node();
+        }
+
         let graph = self.graph();
         assert_eq!(
             self.signal_type(),
-            T::signal_type(),
-            "Signal type must be {} for this operation",
-            stringify!(T),
+            f32::signal_type(),
+            "Cannot convert {} to bool",
+            self.signal_type().name()
         );
-        let node = graph.node(Cast::<T, U>::default());
+        let node = graph.node(AsBool::default());
+        node.input(0).connect(self);
+        node
+    }
+
+    #[inline]
+    #[track_caller]
+    fn as_float(&self) -> Node {
+        if self.signal_type() == f32::signal_type() {
+            return self.node();
+        }
+
+        let graph = self.graph();
+        assert_eq!(
+            self.signal_type(),
+            bool::signal_type(),
+            "Cannot convert {} to float",
+            self.signal_type().name(),
+        );
+
+        let node = graph.node(AsFloat::default());
         node.input(0).connect(self);
         node
     }
@@ -319,7 +322,7 @@ impl OutputExt for Output {
     #[inline]
     #[track_caller]
     fn some(&self) -> Node {
-        generic_unary_op_impl!(self, Some => f32 i64)
+        generic_unary_op_impl!(self, Some => f32)
     }
 
     #[inline]
@@ -344,27 +347,27 @@ impl OutputExt for Output {
     }
 
     fn lt<T: Signal + PartialOrd>(&self, b: impl IntoOutput) -> Node {
-        generic_binary_op_impl!(self, b, Lt => f32 i64)
+        generic_binary_op_impl!(self, b, Lt => f32)
     }
 
     fn gt<T: Signal + PartialOrd>(&self, b: impl IntoOutput) -> Node {
-        generic_binary_op_impl!(self, b, Gt => f32 i64)
+        generic_binary_op_impl!(self, b, Gt => f32)
     }
 
     fn le<T: Signal + PartialOrd>(&self, b: impl IntoOutput) -> Node {
-        generic_binary_op_impl!(self, b, Le => f32 i64)
+        generic_binary_op_impl!(self, b, Le => f32)
     }
 
     fn ge<T: Signal + PartialOrd>(&self, b: impl IntoOutput) -> Node {
-        generic_binary_op_impl!(self, b, Ge => f32 i64)
+        generic_binary_op_impl!(self, b, Ge => f32)
     }
 
     fn eq<T: Signal + PartialOrd>(&self, b: impl IntoOutput) -> Node {
-        generic_binary_op_impl!(self, b, Eq => f32 i64)
+        generic_binary_op_impl!(self, b, Eq => f32)
     }
 
     fn ne<T: Signal + PartialOrd>(&self, b: impl IntoOutput) -> Node {
-        generic_binary_op_impl!(self, b, Ne => f32 i64)
+        generic_binary_op_impl!(self, b, Ne => f32)
     }
 
     #[track_caller]

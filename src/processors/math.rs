@@ -7,12 +7,6 @@ pub fn powf(#[input] a: &f32, #[input] b: &f32, #[output] out: &mut f32) -> Proc
 }
 
 #[processor(derive(Default))]
-pub fn powi(#[input] a: &f32, #[input] b: &i64, #[output] out: &mut f32) -> ProcResult<()> {
-    *out = a.powi(*b as i32);
-    Ok(())
-}
-
-#[processor(derive(Default))]
 pub fn sqrt(#[input] a: &f32, #[output] out: &mut f32) -> ProcResult<()> {
     *out = a.sqrt();
     Ok(())

@@ -237,9 +237,9 @@ pub fn bool_pattern(
     #[state] index: &mut usize,
     #[input] trig: &bool,
     #[output] out: &mut bool,
-    #[output] length: &mut i64,
+    #[output] length: &mut f32,
 ) -> ProcResult<()> {
-    *length = pattern.len() as i64;
+    *length = pattern.len() as f32;
 
     if !pattern.is_empty() {
         if *trig {
@@ -264,8 +264,8 @@ impl BoolPattern {
     }
 }
 
-impl IntoPattern<i64> for &str {
-    fn into_pattern(self) -> List<i64> {
+impl IntoPattern<f32> for &str {
+    fn into_pattern(self) -> List<f32> {
         let mut list = List::default();
         for slc in self.split_ascii_whitespace() {
             match slc.parse() {
@@ -277,15 +277,25 @@ impl IntoPattern<i64> for &str {
     }
 }
 
+impl<const N: usize> IntoPattern<f32> for [i32; N] {
+    fn into_pattern(self) -> List<f32> {
+        let mut list = List::default();
+        for n in self {
+            list.push(n as f32);
+        }
+        list
+    }
+}
+
 #[processor(derive(Default))]
-pub fn int_pattern(
-    #[state] pattern: &mut List<i64>,
+pub fn pattern(
+    #[state] pattern: &mut List<f32>,
     #[state] index: &mut usize,
     #[input] trig: &bool,
-    #[output] out: &mut i64,
-    #[output] length: &mut i64,
+    #[output] out: &mut f32,
+    #[output] length: &mut f32,
 ) -> ProcResult<()> {
-    *length = pattern.len() as i64;
+    *length = pattern.len() as f32;
 
     if !pattern.is_empty() {
         *out = pattern[*index];
@@ -298,8 +308,8 @@ pub fn int_pattern(
     Ok(())
 }
 
-impl IntPattern {
-    pub fn new(pat: impl IntoPattern<i64>) -> Self {
+impl Pattern {
+    pub fn new(pat: impl IntoPattern<f32>) -> Self {
         let pattern = pat.into_pattern();
         let index = pattern.len() - 1;
         Self {
