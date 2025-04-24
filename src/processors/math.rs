@@ -242,18 +242,6 @@ pub fn lerp(
 }
 
 #[processor(derive(Default))]
-pub fn smooth_step(
-    #[input] edge0: &f32,
-    #[input] edge1: &f32,
-    #[input] x: &f32,
-    #[output] out: &mut f32,
-) -> ProcResult<()> {
-    let t = (*x - *edge0) / (*edge1 - *edge0);
-    *out = t.clamp(0.0, 1.0).powf(3.0) * (t * (t * 6.0 - 15.0) + 10.0);
-    Ok(())
-}
-
-#[processor(derive(Default))]
 pub fn smooth(
     #[state] x: &mut f32,
     #[input] input: &f32,
