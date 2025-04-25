@@ -67,6 +67,7 @@ fn main() {
     // let mix = mix * 0.5;
 
     let master = PeakLimiter::default().node(&graph, mix, (), (), ());
+    let master = &master[0] * 0.1;
 
     graph.dac(&master);
     graph.dac(&master);

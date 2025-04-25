@@ -2,17 +2,6 @@ use raug::prelude::*;
 
 use crate::prelude::*;
 
-macro_rules! choose_node_generics {
-    ($graph:expr, $signal_type:expr => $node_type:ident => $($options:ty)*) => {
-        match $signal_type {
-            $(
-                t if t == <$options>::signal_type() => $graph.node($node_type::<$options>::default()),
-            )*
-            _ => panic!("Unsupported signal type: {:?}", $signal_type),
-        }
-    };
-}
-
 pub trait OutputExt {
     fn powf(&self, b: impl IntoOutput) -> Node;
     fn sqrt(&self) -> Node;
@@ -54,6 +43,17 @@ pub trait OutputExt {
     fn toggle(&self) -> Node;
     fn trig_to_gate(&self, length: impl IntoOutput) -> Node;
     fn smooth(&self, factor: impl IntoOutput) -> Node;
+}
+
+macro_rules! choose_node_generics {
+    ($graph:expr, $signal_type:expr => $node_type:ident => $($options:ty)*) => {
+        match $signal_type {
+            $(
+                t if t == <$options>::signal_type() => $graph.node($node_type::<$options>::default()),
+            )*
+            _ => panic!("Unsupported signal type: {:?}", $signal_type),
+        }
+    };
 }
 
 macro_rules! generic_binary_op_impl {
@@ -385,7 +385,6 @@ impl OutputExt for Output {
 
     #[track_caller]
     fn trig_to_gate(&self, length: impl IntoOutput) -> Node {
-        // specific_binary_op_impl!(self, length, TrigToGate => bool)
         let graph = self.graph();
         assert_eq!(
             self.signal_type(),
