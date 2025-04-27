@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use raug::prelude::*;
 
 #[derive(Clone, Default)]
@@ -92,15 +94,58 @@ pub fn sample(
     Ok(())
 }
 
+fn sinc(x: f32) -> f32 {
+    if x == 0.0 {
+        1.0
+    } else {
+        (PI * x).sin() / (PI * x)
+    }
+}
+
+fn hann(x: f32, half_width: f32) -> f32 {
+    0.5 * (1.0 + (PI * x / half_width).cos())
+}
+
+fn windowed_sinc(x: f32, half_width: f32) -> f32 {
+    if x.abs() < half_width {
+        sinc(x) * hann(x, half_width)
+    } else {
+        0.0
+    }
+}
+
+#[allow(clippy::needless_range_loop)]
+/// Resamples the input buffer using a high-quality sinc interpolation.
 fn resample(input: &[f32], input_rate: f32, output_rate: f32) -> Vec<f32> {
-    samplerate::convert(
-        input_rate as u32,
-        output_rate as u32,
-        1,
-        samplerate::ConverterType::SincFastest,
-        input,
-    )
-    .unwrap()
+    if input_rate == 0.0 || output_rate == 0.0 {
+        return input.to_vec();
+    }
+
+    let ratio = input_rate / output_rate;
+    let filter_width = 32.0;
+    let half_width = filter_width / 2.0;
+    let input_len = input.len() as isize;
+    let output_len = (input_len as f32 * output_rate / input_rate).ceil() as usize;
+    let mut output = vec![0.0; output_len];
+
+    for (i, output_sample) in output.iter_mut().enumerate() {
+        let t = i as f32 * ratio;
+        let t_int = t.floor() as isize;
+
+        let mut sample = 0.0;
+
+        for n in (t_int - half_width as isize)..=(t_int + half_width as isize) {
+            if n >= 0 && n < input_len {
+                let x = t - n as f32;
+                let sinc_value = windowed_sinc(x, half_width);
+                sample += sinc_value * input[n as usize];
+            }
+        }
+
+        *output_sample = sample;
+    }
+
+    output
 }
 
 fn sample_allocate(proc: &mut Sample, sample_rate: f32, _block_size: usize) {
