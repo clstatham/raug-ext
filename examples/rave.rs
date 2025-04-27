@@ -31,26 +31,26 @@ pub fn supersaw(
 fn main() {
     env_logger::init();
 
-    let graph = Graph::new();
+    let graph = Graph::new(0, 2);
 
     let clock = Metro::from_tempo_and_ticks(144.0, 4) // 144bpm, 4 ticks per beat
         .node(&graph, (), ());
 
-    let bd_pat = BoolPattern::new("x . . . x . . . x . . . x . . . ").node(&graph, &clock);
+    let bd_pat = BoolPattern::default().node(&graph, &clock, "x . . . x . . . x . . . x . . . ");
     let bd = OneShot::load("examples/assets/bd.wav")
         .unwrap()
         .node(&graph, &bd_pat[0], ());
 
-    let sd_pat = BoolPattern::new(". . . . x . . . . . . . x . . x ").node(&graph, &clock);
-    let sd_vel_pat = Pattern::new([2, 2, 1]).node(&graph, &sd_pat[0]);
+    let sd_pat = BoolPattern::default().node(&graph, &clock, ". . . . x . . . . . . . x . . x ");
+    let sd_vel_pat = Pattern::default().node(&graph, &sd_pat[0], "2 2 1");
     let sd = OneShot::load("examples/assets/sd.wav")
         .unwrap()
         .node(&graph, &sd_pat[0], ());
     let sd = &sd[0] * &sd_vel_pat[0];
 
-    let saw_pat = BoolPattern::new("x . x . x . x .").node(&graph, &clock);
+    let saw_pat = BoolPattern::default().node(&graph, &clock, "x . x . x . x .");
     let base = 40;
-    let saw_notes = Pattern::new([0, 3, 7]).node(&graph, &saw_pat[0]);
+    let saw_notes = Pattern::default().node(&graph, &saw_pat[0], "0 3 7");
     let saw_notes = &saw_notes[0] + base;
     let saw = supersaw(
         &graph,
@@ -64,14 +64,14 @@ fn main() {
     );
 
     let mix = &bd[0] + &sd[0] + &saw[0] * 0.2;
-    // let mix = mix * 0.5;
 
     let master = PeakLimiter::default().node(&graph, mix, (), (), ());
-    let master = &master[0] * 0.1;
 
-    graph.dac(&master);
-    graph.dac(&master);
+    graph.dac((&master, &master));
 
-    let stream = CpalOut::default().record_to_wav("recording.wav");
+    graph.allocate(48000.0, 512);
+
+    let stream = CpalOut::spawn(&AudioBackend::Default, &AudioDevice::Default)
+        .record_to_wav("recording.wav");
     graph.play_for(stream, Duration::from_secs(10)).unwrap();
 }

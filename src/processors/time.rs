@@ -201,24 +201,28 @@ pub trait IntoPattern<T: Signal> {
 }
 
 impl<T: Signal> IntoPattern<T> for List<T> {
+    #[inline]
     fn into_pattern(self) -> List<T> {
         self
     }
 }
 
 impl<T: Signal> IntoPattern<T> for &[T] {
+    #[inline]
     fn into_pattern(self) -> List<T> {
         List::from_slice(self)
     }
 }
 
 impl<T: Signal, const N: usize> IntoPattern<T> for [T; N] {
+    #[inline]
     fn into_pattern(self) -> List<T> {
         List::from_slice(&self)
     }
 }
 
 impl IntoPattern<bool> for &str {
+    #[inline]
     fn into_pattern(self) -> List<bool> {
         let mut list = List::with_capacity(self.len());
         for slc in self.split_ascii_whitespace() {
@@ -233,19 +237,20 @@ impl IntoPattern<bool> for &str {
 
 #[processor(derive(Default))]
 pub fn bool_pattern(
-    #[state] pattern: &mut List<bool>,
-    #[state] index: &mut usize,
+    #[state] index_state: &mut usize,
     #[input] trig: &bool,
+    #[input] pattern: &Str,
     #[output] out: &mut bool,
-    #[output] length: &mut f32,
+    #[output] index: &mut f32,
 ) -> ProcResult<()> {
-    *length = pattern.len() as f32;
+    let pattern = pattern.into_pattern();
+    *index = *index_state as f32;
 
     if !pattern.is_empty() {
         if *trig {
-            *out = pattern[*index];
-            *index += 1;
-            *index %= pattern.len();
+            *out = pattern[*index_state];
+            *index_state += 1;
+            *index_state %= pattern.len();
         } else {
             *out = false;
         }
@@ -254,23 +259,13 @@ pub fn bool_pattern(
     Ok(())
 }
 
-impl BoolPattern {
-    pub fn new(pat: impl IntoPattern<bool>) -> Self {
-        Self {
-            pattern: pat.into_pattern(),
-            index: 0,
-            trig: false,
-        }
-    }
-}
-
 impl IntoPattern<f32> for &str {
+    #[inline]
     fn into_pattern(self) -> List<f32> {
-        let mut list = List::default();
+        let mut list = List::with_capacity(self.len());
         for slc in self.split_ascii_whitespace() {
-            match slc.parse() {
-                Ok(i) => list.push(i),
-                Err(e) => panic!("Invalid pattern element `{slc}`: {e}"),
+            if let Ok(i) = slc.parse() {
+                list.push(i)
             }
         }
         list
@@ -287,35 +282,38 @@ impl<const N: usize> IntoPattern<f32> for [i32; N] {
     }
 }
 
-#[processor(derive(Default))]
+#[processor]
 pub fn pattern(
-    #[state] pattern: &mut List<f32>,
-    #[state] index: &mut usize,
+    #[state] index_state: &mut isize,
     #[input] trig: &bool,
+    #[input] pattern: &Str,
     #[output] out: &mut f32,
-    #[output] length: &mut f32,
+    #[output] index: &mut f32,
 ) -> ProcResult<()> {
-    *length = pattern.len() as f32;
+    let pattern = pattern.into_pattern();
+    *index = *index_state as f32;
 
     if !pattern.is_empty() {
-        *out = pattern[*index];
+        if *index_state < 0 {
+            *out = pattern[(pattern.len() as isize + *index_state) as usize];
+        } else {
+            *out = pattern[*index_state as usize];
+        }
         if *trig {
-            *index += 1;
-            *index %= pattern.len();
+            *index_state += 1;
+            *index_state %= pattern.len() as isize;
         }
     }
 
     Ok(())
 }
 
-impl Pattern {
-    pub fn new(pat: impl IntoPattern<f32>) -> Self {
-        let pattern = pat.into_pattern();
-        let index = pattern.len() - 1;
+impl Default for Pattern {
+    fn default() -> Self {
         Self {
-            pattern,
-            index,
+            index_state: -1,
             trig: false,
+            pattern: Str::new(),
         }
     }
 }

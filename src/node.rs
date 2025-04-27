@@ -28,8 +28,6 @@ pub trait OutputExt {
     fn min(&self, b: impl IntoOutput) -> Node;
     fn clamp(&self, min: impl IntoOutput, max: impl IntoOutput) -> Node;
 
-    fn as_float(&self) -> Node;
-    fn as_bool(&self) -> Node;
     fn some(&self) -> Node;
     fn unwrap_or(&self, b: impl IntoOutput) -> Node;
 
@@ -277,45 +275,6 @@ impl OutputExt for Output {
         node.input(0).connect(self);
         node.input(1).connect(min);
         node.input(2).connect(max);
-        node
-    }
-
-    #[inline]
-    #[track_caller]
-    fn as_bool(&self) -> Node {
-        if self.signal_type() == bool::signal_type() {
-            return self.node();
-        }
-
-        let graph = self.graph();
-        assert_eq!(
-            self.signal_type(),
-            f32::signal_type(),
-            "Cannot convert {} to bool",
-            self.signal_type().name()
-        );
-        let node = graph.node(AsBool::default());
-        node.input(0).connect(self);
-        node
-    }
-
-    #[inline]
-    #[track_caller]
-    fn as_float(&self) -> Node {
-        if self.signal_type() == f32::signal_type() {
-            return self.node();
-        }
-
-        let graph = self.graph();
-        assert_eq!(
-            self.signal_type(),
-            bool::signal_type(),
-            "Cannot convert {} to float",
-            self.signal_type().name(),
-        );
-
-        let node = graph.node(AsFloat::default());
-        node.input(0).connect(self);
         node
     }
 

@@ -10,18 +10,6 @@ use raug::prelude::*;
 use thiserror::Error;
 
 #[processor(derive(Default))]
-pub fn as_bool(#[input] input: &f32, #[output] out: &mut bool) -> ProcResult<()> {
-    *out = input.as_bool();
-    Ok(())
-}
-
-#[processor(derive(Default))]
-pub fn as_float(#[input] input: &bool, #[output] out: &mut f32) -> ProcResult<()> {
-    *out = if *input { 1.0 } else { 0.0 };
-    Ok(())
-}
-
-#[processor(derive(Default))]
 pub fn sample_rate(env: ProcEnv, #[output] out: &mut f32) -> ProcResult<()> {
     *out = env.sample_rate;
     Ok(())
