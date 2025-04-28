@@ -2,7 +2,7 @@ use raug::prelude::*;
 use raug_ext::prelude::*;
 
 #[allow(clippy::too_many_arguments)]
-pub fn supersaw(
+pub fn synth(
     graph: &Graph,
     pitch: impl IntoOutput,
     detune: impl IntoOutput,
@@ -22,10 +22,13 @@ pub fn supersaw(
     let saw1 = BlSawOscillator::default().node(graph, freq1);
     let saw2 = BlSawOscillator::default().node(graph, freq2);
 
-    let saws = (saw1 + saw2) * 0.5;
+    // let saws = (saw1 + saw2) * 0.5;
+    let saws = saw1;
 
     let adsr = Adsr::default().node(graph, gate, attack, decay, sustain, release);
-    saws * adsr
+    let adsr = adsr[0].scale(20.0, 20_000.0);
+
+    Biquad::lowpass().node(graph, saws, adsr, 20.0, 0.01)
 }
 
 fn main() {
@@ -52,25 +55,28 @@ fn main() {
     let base = 40;
     let saw_notes = Pattern::default().node(&graph, &saw_pat[0], "0 3 7");
     let saw_notes = &saw_notes[0] + base;
-    let saw = supersaw(
+    let saw = synth(
         &graph,
         &saw_notes[0],
-        0.1,
+        0.0,
         saw_pat[0].trig_to_gate(0.1),
         0.0,
-        0.2,
+        0.12,
         0.0,
         1.0,
     );
     let saw = &saw[0] * 0.2;
 
     let mix = &bd[0] + &sd[0] + &saw[0];
-    let verb = StereoReverb::default().node(&graph, &saw[0], &saw[0], ());
-    let verb_l = &verb[0] * 0.5 + &mix[0] * 0.5;
-    let verb_r = &verb[1] * 0.5 + &mix[0] * 0.5;
+    // let verb = StereoReverb::default().node(&graph, &saw[0], &saw[0], ());
+    // let verb_l = &verb[0] * 0.5 + &mix[0] * 0.5;
+    // let verb_r = &verb[1] * 0.5 + &mix[0] * 0.5;
 
-    let mix_l = verb_l;
-    let mix_r = verb_r;
+    // let mix_l = verb_l;
+    // let mix_r = verb_r;
+
+    let mix_l = mix.clone();
+    let mix_r = mix.clone();
 
     let l = PeakLimiter::default().node(&graph, mix_l, (), (), ());
     let r = PeakLimiter::default().node(&graph, mix_r, (), (), ());

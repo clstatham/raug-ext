@@ -41,6 +41,7 @@ pub trait OutputExt {
     fn toggle(&self) -> Node;
     fn trig_to_gate(&self, length: impl IntoOutput) -> Node;
     fn smooth(&self, factor: impl IntoOutput) -> Node;
+    fn scale(&self, min: impl IntoOutput, max: impl IntoOutput) -> Node;
 }
 
 macro_rules! choose_node_generics {
@@ -359,5 +360,32 @@ impl OutputExt for Output {
     #[track_caller]
     fn smooth(&self, factor: impl IntoOutput) -> Node {
         specific_binary_op_impl!(self, factor, Smooth => f32)
+    }
+
+    #[track_caller]
+    fn scale(&self, min: impl IntoOutput, max: impl IntoOutput) -> Node {
+        let graph = self.graph();
+        let min = min.into_output(graph);
+        let max = max.into_output(graph);
+        assert_eq!(
+            self.signal_type(),
+            f32::signal_type(),
+            "Signal type must be f32 for this operation"
+        );
+        assert_eq!(
+            min.signal_type(),
+            f32::signal_type(),
+            "Signal type must be f32 for this operation"
+        );
+        assert_eq!(
+            max.signal_type(),
+            f32::signal_type(),
+            "Signal type must be f32 for this operation"
+        );
+        let node = graph.node(Scale::default());
+        node.input(0).connect(self);
+        node.input(1).connect(min);
+        node.input(2).connect(max);
+        node
     }
 }

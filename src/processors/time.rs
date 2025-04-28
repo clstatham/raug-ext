@@ -414,7 +414,7 @@ pub fn allpass(
     let delay = delay.max(0.0);
     let delay_samples = delay * env.sample_rate;
     if delay_samples >= ringbuf.len() as f32 {
-        ringbuf.resize((delay_samples + 3.0) as usize, 0.0); // we hate doing this here, but we have to
+        ringbuf.resize((delay_samples + 1.0) as usize, 0.0); // we hate doing this here, but we have to
     }
 
     let delayed = ringbuf[*write_index];

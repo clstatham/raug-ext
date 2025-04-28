@@ -17,20 +17,15 @@ pub fn sample_rate(env: ProcEnv, #[output] out: &mut f32) -> ProcResult<()> {
 
 #[processor(derive(Default))]
 pub fn message<T>(
-    #[state] last_message: &mut T,
     #[input] trig: &bool,
-    #[input] message: &Option<T>,
+    #[input] message: &T,
     #[output] out: &mut Option<T>,
 ) -> ProcResult<()>
 where
     T: Signal,
 {
-    if let Some(msg) = message.as_ref() {
-        last_message.clone_from(msg);
-    }
-
     if *trig {
-        *out = Some(last_message.clone());
+        *out = Some(message.clone());
     } else {
         *out = None;
     }
@@ -39,11 +34,10 @@ where
 }
 
 impl<T: Signal> Message<T> {
-    pub fn new(msg: T) -> Self {
+    pub fn new(message: T) -> Self {
         Message {
-            last_message: msg,
             trig: false,
-            message: None,
+            message,
             _marker0: PhantomData,
         }
     }
@@ -51,23 +45,22 @@ impl<T: Signal> Message<T> {
 
 #[processor(derive(Default))]
 pub fn register<T>(
-    #[state] last_value: &mut Option<T>,
-    #[input] set: &Option<T>,
+    #[state] last_value: &mut T,
+    #[input] input: &T,
+    #[input] set: &bool,
     #[input] clear: &bool,
-    #[output] out: &mut Option<T>,
+    #[output] out: &mut T,
 ) -> ProcResult<()>
 where
     T: Signal,
 {
-    if let Some(value) = set.as_ref() {
-        *last_value = Some(value.clone());
+    if *set {
+        last_value.clone_from(input);
+    } else if *clear {
+        *last_value = T::default();
     }
 
-    if *clear {
-        *last_value = None;
-    }
-
-    *out = last_value.clone();
+    out.clone_from(last_value);
     Ok(())
 }
 
@@ -113,16 +106,20 @@ where
 
 #[processor(derive(Default))]
 pub fn random_choice<T>(
-    #[state] state: &mut Option<T>,
+    #[state] state: &mut T,
     #[input] trig: &bool,
     #[input] options: &List<T>,
-    #[output] out: &mut Option<T>,
+    #[output] out: &mut T,
 ) -> ProcResult<()>
 where
     T: Signal,
 {
     if *trig {
-        *state = options.as_ref().choose(&mut rand::rng()).cloned();
+        *state = options
+            .as_ref()
+            .choose(&mut rand::rng())
+            .cloned()
+            .unwrap_or_default();
     }
 
     *out = state.clone();
@@ -234,15 +231,15 @@ impl<T: Signal> Processor for Channel<T> {
     }
 
     fn input_spec(&self) -> Vec<SignalSpec> {
-        vec![SignalSpec::new("input", T::signal_type())]
+        vec![T::signal_spec("input")]
     }
 
     fn output_spec(&self) -> Vec<SignalSpec> {
-        vec![SignalSpec::new("out", T::signal_type())]
+        vec![T::signal_spec("out")]
     }
 
     fn create_output_buffers(&self, size: usize) -> Vec<AnyBuffer> {
-        vec![AnyBuffer::zeros::<T>(size)]
+        vec![T::create_buffer(size)]
     }
 
     fn process(
