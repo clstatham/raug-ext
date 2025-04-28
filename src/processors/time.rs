@@ -1,5 +1,7 @@
 use raug::prelude::*;
 
+use super::SineOscillator;
+
 #[processor(derive(Default))]
 pub fn metro(
     env: ProcEnv,
@@ -314,6 +316,265 @@ impl Default for Pattern {
             index_state: -1,
             trig: false,
             pattern: Str::new(),
+        }
+    }
+}
+
+#[inline]
+const fn lerp(a: f32, b: f32, t: f32) -> f32 {
+    a + (b - a) * t
+}
+
+#[inline]
+const fn catmull_rom(p0: f32, p1: f32, p2: f32, p3: f32, t: f32) -> f32 {
+    let a = (-0.5 * p0) + (1.5 * p1) - (1.5 * p2) + (0.5 * p3);
+    let b = p0 - (2.5 * p1) + (2.0 * p2) - (0.5 * p3);
+    let c = (-0.5 * p0) + (0.5 * p2);
+    let d = p1;
+    a * t * t * t + b * t * t + c * t + d
+}
+
+#[processor]
+pub fn delay(
+    env: ProcEnv,
+    #[state] ringbuf: &mut Vec<f32>,
+    #[state] write_index: &mut usize,
+    #[input] input: &f32,
+    #[input] delay: &f32,
+    #[input] feedback: &f32,
+    #[output] out: &mut f32,
+) -> ProcResult<()> {
+    let delay = delay.max(0.0);
+    let delay_samples = delay * env.sample_rate;
+    if delay_samples >= ringbuf.len() as f32 {
+        ringbuf.resize((delay_samples + 3.0) as usize, 0.0); // we hate doing this here, but we have to
+    }
+    let read_index = *write_index as f32 - delay_samples;
+    let read_index = if read_index < 0.0 {
+        ringbuf.len() as f32 + read_index
+    } else {
+        read_index
+    };
+
+    let index1 = read_index.floor() as usize % ringbuf.len();
+    let frac = read_index.fract();
+
+    let index0 = (index1 + ringbuf.len() - 1) % ringbuf.len();
+    let index2 = (index1 + 1) % ringbuf.len();
+    let index3 = (index1 + 2) % ringbuf.len();
+
+    let s0 = ringbuf[index0];
+    let s1 = ringbuf[index1];
+    let s2 = ringbuf[index2];
+    let s3 = ringbuf[index3];
+
+    *out = catmull_rom(s0, s1, s2, s3, frac);
+
+    let feedback = feedback.clamp(-1.0, 1.0);
+    ringbuf[*write_index] = *input + feedback * *out;
+    *write_index = (*write_index + 1) % ringbuf.len();
+
+    Ok(())
+}
+
+impl Default for Delay {
+    fn default() -> Self {
+        Self {
+            ringbuf: vec![0.0; 1],
+            write_index: 0,
+            input: 0.0,
+            feedback: 0.0,
+            delay: 0.0,
+        }
+    }
+}
+
+impl Delay {
+    pub fn new(delay: f32) -> Self {
+        Self {
+            ringbuf: vec![0.0; (delay * 48000.0) as usize + 1],
+            write_index: 0,
+            input: 0.0,
+            feedback: 0.0,
+            delay,
+        }
+    }
+}
+
+#[processor]
+pub fn allpass(
+    env: ProcEnv,
+    #[state] ringbuf: &mut Vec<f32>,
+    #[state] write_index: &mut usize,
+    #[input] input: &f32,
+    #[input] delay: &f32,
+    #[input] gain: &f32,
+    #[output] out: &mut f32,
+) -> ProcResult<()> {
+    let delay = delay.max(0.0);
+    let delay_samples = delay * env.sample_rate;
+    if delay_samples >= ringbuf.len() as f32 {
+        ringbuf.resize((delay_samples + 3.0) as usize, 0.0); // we hate doing this here, but we have to
+    }
+
+    let delayed = ringbuf[*write_index];
+    *out = -*input + delayed;
+    ringbuf[*write_index] = *input + gain * delayed;
+
+    *write_index = (*write_index + 1) % ringbuf.len();
+
+    Ok(())
+}
+
+impl Allpass {
+    pub fn new(delay: f32, gain: f32) -> Self {
+        Self {
+            ringbuf: vec![0.0; (delay * 48000.0) as usize + 1],
+            write_index: 0,
+            input: 0.0,
+            delay,
+            gain,
+        }
+    }
+}
+
+struct ReberbVoice {
+    delay: Delay,
+    allpass: Allpass,
+    lfo: SineOscillator,
+}
+
+impl ReberbVoice {
+    pub fn new(delay: f32, feedback: f32, diffusion_gain: f32, lfo_freq: f32) -> Self {
+        Self {
+            delay: Delay {
+                feedback,
+                ..Delay::new(delay)
+            },
+            allpass: Allpass::new(delay, diffusion_gain),
+            lfo: SineOscillator {
+                frequency: lfo_freq,
+                ..Default::default()
+            },
+        }
+    }
+
+    pub fn process_sample(&mut self, env: ProcEnv, mut input: f32) -> ProcResult<f32> {
+        let mut out = 0.0;
+        let mut lfo_phase = 0.0;
+        SineOscillator::process_sample(
+            env,
+            &mut self.lfo.t,
+            &self.lfo.phase,
+            &self.lfo.frequency,
+            &false,
+            &mut lfo_phase,
+        )?;
+        Delay::process_sample(
+            env,
+            &mut self.delay.ringbuf,
+            &mut self.delay.write_index,
+            &input,
+            &(self.delay.delay + lfo_phase),
+            &self.delay.feedback,
+            &mut out,
+        )?;
+        input = out;
+        Allpass::process_sample(
+            env,
+            &mut self.allpass.ringbuf,
+            &mut self.allpass.write_index,
+            &input,
+            &self.allpass.delay,
+            &self.allpass.gain,
+            &mut out,
+        )?;
+
+        Ok(out)
+    }
+}
+
+#[processor]
+pub fn mono_reverb(
+    env: ProcEnv,
+    #[state] voices: &mut Vec<ReberbVoice>,
+    #[input] input: &f32,
+    #[output] out: &mut f32,
+) -> ProcResult<()> {
+    *out = 0.0;
+
+    for voice in voices.iter_mut() {
+        *out += voice.process_sample(env, *input)?;
+    }
+
+    *out /= voices.len() as f32;
+
+    Ok(())
+}
+
+impl Default for MonoReverb {
+    fn default() -> Self {
+        Self {
+            voices: vec![
+                ReberbVoice::new(0.029, 0.7, 0.5, 0.1),
+                ReberbVoice::new(0.037, 0.75, 0.5, 0.07),
+                ReberbVoice::new(0.041, 0.72, 0.5, 0.11),
+                ReberbVoice::new(0.053, 0.78, 0.5, 0.05),
+            ],
+            input: 0.0,
+        }
+    }
+}
+
+#[processor]
+pub fn stereo_reverb(
+    env: ProcEnv,
+    #[state] voices_l: &mut Vec<ReberbVoice>,
+    #[state] voices_r: &mut Vec<ReberbVoice>,
+    #[input] input_l: &f32,
+    #[input] input_r: &f32,
+    #[input] crossfeed: &f32,
+    #[output] out_l: &mut f32,
+    #[output] out_r: &mut f32,
+) -> ProcResult<()> {
+    *out_l = 0.0;
+    *out_r = 0.0;
+
+    for (voice_l, voice_r) in voices_l.iter_mut().zip(voices_r.iter_mut()) {
+        *out_l += voice_l.process_sample(env, *input_l)?;
+        *out_r += voice_r.process_sample(env, *input_r)?;
+    }
+
+    *out_l /= voices_l.len() as f32;
+    *out_r /= voices_r.len() as f32;
+
+    let l = *out_l;
+    let r = *out_r;
+
+    *out_l = lerp(l, r, *crossfeed);
+    *out_r = lerp(r, l, *crossfeed);
+
+    Ok(())
+}
+
+impl Default for StereoReverb {
+    fn default() -> Self {
+        Self {
+            voices_l: vec![
+                ReberbVoice::new(0.029, 0.7, 0.5, 0.1),
+                ReberbVoice::new(0.037, 0.75, 0.5, 0.07),
+                ReberbVoice::new(0.041, 0.72, 0.5, 0.11),
+                ReberbVoice::new(0.053, 0.78, 0.5, 0.05),
+            ],
+            voices_r: vec![
+                ReberbVoice::new(0.028, 0.71, 0.5, 0.11),
+                ReberbVoice::new(0.039, 0.74, 0.5, 0.08),
+                ReberbVoice::new(0.040, 0.73, 0.5, 0.12),
+                ReberbVoice::new(0.054, 0.77, 0.5, 0.04),
+            ],
+            input_l: 0.0,
+            input_r: 0.0,
+            crossfeed: 0.2,
         }
     }
 }

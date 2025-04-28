@@ -62,12 +62,20 @@ fn main() {
         0.0,
         1.0,
     );
+    let saw = &saw[0] * 0.2;
 
-    let mix = &bd[0] + &sd[0] + &saw[0] * 0.2;
+    let mix = &bd[0] + &sd[0] + &saw[0];
+    let verb = StereoReverb::default().node(&graph, &saw[0], &saw[0], ());
+    let verb_l = &verb[0] * 0.5 + &mix[0] * 0.5;
+    let verb_r = &verb[1] * 0.5 + &mix[0] * 0.5;
 
-    let master = PeakLimiter::default().node(&graph, mix, (), (), ());
+    let mix_l = verb_l;
+    let mix_r = verb_r;
 
-    graph.dac((&master, &master));
+    let l = PeakLimiter::default().node(&graph, mix_l, (), (), ());
+    let r = PeakLimiter::default().node(&graph, mix_r, (), (), ());
+
+    graph.dac((&l, &r));
 
     graph.allocate(48000.0, 512);
 

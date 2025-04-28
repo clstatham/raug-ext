@@ -114,7 +114,6 @@ fn windowed_sinc(x: f32, half_width: f32) -> f32 {
     }
 }
 
-#[allow(clippy::needless_range_loop)]
 /// Resamples the input buffer using a high-quality sinc interpolation.
 fn resample(input: &[f32], input_rate: f32, output_rate: f32) -> Vec<f32> {
     if input_rate == 0.0 || output_rate == 0.0 {
