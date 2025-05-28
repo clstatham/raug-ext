@@ -38,7 +38,7 @@ impl<T: Signal> Message<T> {
         Message {
             trig: false,
             message,
-            _marker0: PhantomData,
+            _t: PhantomData,
         }
     }
 }
@@ -174,12 +174,12 @@ impl<T: Signal> Channel<T> {
             Tx {
                 tx,
                 input: init.clone(),
-                _marker0: PhantomData,
+                _t: PhantomData,
             },
             Rx {
                 rx,
                 last: init.clone(),
-                _marker0: PhantomData,
+                _t: PhantomData,
             },
         )
     }

@@ -3,7 +3,7 @@ use raug::prelude::*;
 use crate::prelude::*;
 
 pub trait OutputExt {
-    fn powf(&self, b: impl IntoOutput) -> Node;
+    fn powf(&self, b: impl IntoOutputExt) -> Node;
     fn sqrt(&self) -> Node;
     fn sin(&self) -> Node;
     fn cos(&self) -> Node;
@@ -14,8 +14,8 @@ pub trait OutputExt {
     fn sinh(&self) -> Node;
     fn cosh(&self) -> Node;
     fn tanh(&self) -> Node;
-    fn atan2(&self, b: impl IntoOutput) -> Node;
-    fn hypot(&self, b: impl IntoOutput) -> Node;
+    fn atan2(&self, b: impl IntoOutputExt) -> Node;
+    fn hypot(&self, b: impl IntoOutputExt) -> Node;
     fn abs(&self) -> Node;
     fn ceil(&self) -> Node;
     fn floor(&self) -> Node;
@@ -24,24 +24,24 @@ pub trait OutputExt {
     fn fract(&self) -> Node;
     fn recip(&self) -> Node;
     fn signum(&self) -> Node;
-    fn max(&self, b: impl IntoOutput) -> Node;
-    fn min(&self, b: impl IntoOutput) -> Node;
-    fn clamp(&self, min: impl IntoOutput, max: impl IntoOutput) -> Node;
+    fn max(&self, b: impl IntoOutputExt) -> Node;
+    fn min(&self, b: impl IntoOutputExt) -> Node;
+    fn clamp(&self, min: impl IntoOutputExt, max: impl IntoOutputExt) -> Node;
 
     fn some(&self) -> Node;
-    fn unwrap_or(&self, b: impl IntoOutput) -> Node;
+    fn unwrap_or(&self, b: impl IntoOutputExt) -> Node;
 
-    fn lt<T: Signal + PartialOrd>(&self, b: impl IntoOutput) -> Node;
-    fn gt<T: Signal + PartialOrd>(&self, b: impl IntoOutput) -> Node;
-    fn le<T: Signal + PartialOrd>(&self, b: impl IntoOutput) -> Node;
-    fn ge<T: Signal + PartialOrd>(&self, b: impl IntoOutput) -> Node;
-    fn eq<T: Signal + PartialOrd>(&self, b: impl IntoOutput) -> Node;
-    fn ne<T: Signal + PartialOrd>(&self, b: impl IntoOutput) -> Node;
+    fn lt<T: Signal + PartialOrd>(&self, b: impl IntoOutputExt) -> Node;
+    fn gt<T: Signal + PartialOrd>(&self, b: impl IntoOutputExt) -> Node;
+    fn le<T: Signal + PartialOrd>(&self, b: impl IntoOutputExt) -> Node;
+    fn ge<T: Signal + PartialOrd>(&self, b: impl IntoOutputExt) -> Node;
+    fn eq<T: Signal + PartialOrd>(&self, b: impl IntoOutputExt) -> Node;
+    fn ne<T: Signal + PartialOrd>(&self, b: impl IntoOutputExt) -> Node;
 
     fn toggle(&self) -> Node;
-    fn trig_to_gate(&self, length: impl IntoOutput) -> Node;
-    fn smooth(&self, factor: impl IntoOutput) -> Node;
-    fn scale(&self, min: impl IntoOutput, max: impl IntoOutput) -> Node;
+    fn trig_to_gate(&self, length: impl IntoOutputExt) -> Node;
+    fn smooth(&self, factor: impl IntoOutputExt) -> Node;
+    fn scale(&self, min: impl IntoOutputExt, max: impl IntoOutputExt) -> Node;
 }
 
 macro_rules! choose_node_generics {
@@ -58,7 +58,7 @@ macro_rules! choose_node_generics {
 macro_rules! generic_binary_op_impl {
     ($self:ident, $b:ident, $op:ident => $($options:ty)*) => {{
         let graph = $self.graph();
-        let b = $b.into_output(graph);
+        let b = $b.into_output(&graph);
         assert_eq!(
             $self.signal_type(),
             b.signal_type(),
@@ -80,7 +80,7 @@ macro_rules! specific_binary_op_impl {
             "Signal type must be {} for this operation",
             stringify!($type),
         );
-        let b = $b.into_output(graph);
+        let b = $b.into_output(&graph);
         assert_eq!(
             $self.signal_type(),
             b.signal_type(),
@@ -120,7 +120,7 @@ macro_rules! specific_unary_op_impl {
 impl OutputExt for Output {
     #[inline]
     #[track_caller]
-    fn powf(&self, b: impl IntoOutput) -> Node {
+    fn powf(&self, b: impl IntoOutputExt) -> Node {
         specific_binary_op_impl!(self, b, Powf => f32)
     }
 
@@ -186,13 +186,13 @@ impl OutputExt for Output {
 
     #[inline]
     #[track_caller]
-    fn atan2(&self, b: impl IntoOutput) -> Node {
+    fn atan2(&self, b: impl IntoOutputExt) -> Node {
         specific_binary_op_impl!(self, b, Atan2 => f32)
     }
 
     #[inline]
     #[track_caller]
-    fn hypot(&self, b: impl IntoOutput) -> Node {
+    fn hypot(&self, b: impl IntoOutputExt) -> Node {
         specific_binary_op_impl!(self, b, Hypot => f32)
     }
 
@@ -246,22 +246,22 @@ impl OutputExt for Output {
 
     #[inline]
     #[track_caller]
-    fn max(&self, b: impl IntoOutput) -> Node {
+    fn max(&self, b: impl IntoOutputExt) -> Node {
         generic_binary_op_impl!(self, b, Max => f32)
     }
 
     #[inline]
     #[track_caller]
-    fn min(&self, b: impl IntoOutput) -> Node {
+    fn min(&self, b: impl IntoOutputExt) -> Node {
         generic_binary_op_impl!(self, b, Min => f32)
     }
 
     #[inline]
     #[track_caller]
-    fn clamp(&self, min: impl IntoOutput, max: impl IntoOutput) -> Node {
+    fn clamp(&self, min: impl IntoOutputExt, max: impl IntoOutputExt) -> Node {
         let graph = self.graph();
-        let min = min.into_output(graph);
-        let max = max.into_output(graph);
+        let min = min.into_output(&graph);
+        let max = max.into_output(&graph);
         assert_eq!(
             self.signal_type(),
             min.signal_type(),
@@ -287,9 +287,9 @@ impl OutputExt for Output {
 
     #[inline]
     #[track_caller]
-    fn unwrap_or(&self, b: impl IntoOutput) -> Node {
+    fn unwrap_or(&self, b: impl IntoOutputExt) -> Node {
         let graph = self.graph();
-        let b = b.into_output(graph);
+        let b = b.into_output(&graph);
         assert_eq!(
             self.signal_type(),
             Option::<f32>::signal_type(),
@@ -306,27 +306,27 @@ impl OutputExt for Output {
         node
     }
 
-    fn lt<T: Signal + PartialOrd>(&self, b: impl IntoOutput) -> Node {
+    fn lt<T: Signal + PartialOrd>(&self, b: impl IntoOutputExt) -> Node {
         generic_binary_op_impl!(self, b, Lt => f32)
     }
 
-    fn gt<T: Signal + PartialOrd>(&self, b: impl IntoOutput) -> Node {
+    fn gt<T: Signal + PartialOrd>(&self, b: impl IntoOutputExt) -> Node {
         generic_binary_op_impl!(self, b, Gt => f32)
     }
 
-    fn le<T: Signal + PartialOrd>(&self, b: impl IntoOutput) -> Node {
+    fn le<T: Signal + PartialOrd>(&self, b: impl IntoOutputExt) -> Node {
         generic_binary_op_impl!(self, b, Le => f32)
     }
 
-    fn ge<T: Signal + PartialOrd>(&self, b: impl IntoOutput) -> Node {
+    fn ge<T: Signal + PartialOrd>(&self, b: impl IntoOutputExt) -> Node {
         generic_binary_op_impl!(self, b, Ge => f32)
     }
 
-    fn eq<T: Signal + PartialOrd>(&self, b: impl IntoOutput) -> Node {
+    fn eq<T: Signal + PartialOrd>(&self, b: impl IntoOutputExt) -> Node {
         generic_binary_op_impl!(self, b, Eq => f32)
     }
 
-    fn ne<T: Signal + PartialOrd>(&self, b: impl IntoOutput) -> Node {
+    fn ne<T: Signal + PartialOrd>(&self, b: impl IntoOutputExt) -> Node {
         generic_binary_op_impl!(self, b, Ne => f32)
     }
 
@@ -344,7 +344,7 @@ impl OutputExt for Output {
     }
 
     #[track_caller]
-    fn trig_to_gate(&self, length: impl IntoOutput) -> Node {
+    fn trig_to_gate(&self, length: impl IntoOutputExt) -> Node {
         let graph = self.graph();
         assert_eq!(
             self.signal_type(),
@@ -358,15 +358,15 @@ impl OutputExt for Output {
     }
 
     #[track_caller]
-    fn smooth(&self, factor: impl IntoOutput) -> Node {
+    fn smooth(&self, factor: impl IntoOutputExt) -> Node {
         specific_binary_op_impl!(self, factor, Smooth => f32)
     }
 
     #[track_caller]
-    fn scale(&self, min: impl IntoOutput, max: impl IntoOutput) -> Node {
+    fn scale(&self, min: impl IntoOutputExt, max: impl IntoOutputExt) -> Node {
         let graph = self.graph();
-        let min = min.into_output(graph);
-        let max = max.into_output(graph);
+        let min = min.into_output(&graph);
+        let max = max.into_output(&graph);
         assert_eq!(
             self.signal_type(),
             f32::signal_type(),

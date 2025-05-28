@@ -4,9 +4,9 @@ use raug_ext::prelude::*;
 #[allow(clippy::too_many_arguments)]
 pub fn synth(
     graph: &Graph,
-    pitch: impl IntoOutput,
-    detune: impl IntoOutput,
-    gate: impl IntoOutput,
+    pitch: impl IntoOutputExt,
+    detune: impl IntoOutputExt,
+    gate: impl IntoOutputExt,
     attack: impl IntoOutputOpt,
     decay: impl IntoOutputOpt,
     sustain: impl IntoOutputOpt,
@@ -26,7 +26,7 @@ pub fn synth(
     let saws = saw1;
 
     let adsr = Adsr::default().node(graph, gate, attack, decay, sustain, release);
-    let adsr = adsr[0].scale(20.0, 20_000.0);
+    let adsr = adsr.output(0).scale(20.0, 20_000.0);
 
     Biquad::lowpass().node(graph, saws, adsr, 20.0, 0.01)
 }
@@ -42,35 +42,35 @@ fn main() {
     let bd_pat = BoolPattern::default().node(&graph, &clock, "x . . . x . . . x . . . x . . . ");
     let bd = OneShot::load("examples/assets/bd.wav")
         .unwrap()
-        .node(&graph, &bd_pat[0], ());
+        .node(&graph, bd_pat.output(0), ());
 
     let sd_pat = BoolPattern::default().node(&graph, &clock, ". . . . x . . . . . . . x . . x ");
-    let sd_vel_pat = Pattern::default().node(&graph, &sd_pat[0], "2 2 1");
+    let sd_vel_pat = Pattern::default().node(&graph, sd_pat.output(0), "2 2 1");
     let sd = OneShot::load("examples/assets/sd.wav")
         .unwrap()
-        .node(&graph, &sd_pat[0], ());
-    let sd = &sd[0] * &sd_vel_pat[0];
+        .node(&graph, sd_pat.output(0), ());
+    let sd = &sd.output(0) * &sd_vel_pat.output(0);
 
     let saw_pat = BoolPattern::default().node(&graph, &clock, "x . x . x . x .");
     let base = 40;
-    let saw_notes = Pattern::default().node(&graph, &saw_pat[0], "0 3 7");
-    let saw_notes = &saw_notes[0] + base;
+    let saw_notes = Pattern::default().node(&graph, saw_pat.output(0), "0 3 7");
+    let saw_notes = &saw_notes.output(0) + base;
     let saw = synth(
         &graph,
-        &saw_notes[0],
+        saw_notes.output(0),
         0.0,
-        saw_pat[0].trig_to_gate(0.1),
+        saw_pat.output(0).trig_to_gate(0.1),
         0.0,
         0.12,
         0.0,
         1.0,
     );
-    let saw = &saw[0] * 0.2;
+    let saw = &saw.output(0) * 0.2;
 
-    let mix = &bd[0] + &sd[0] + &saw[0];
-    // let verb = StereoReverb::default().node(&graph, &saw[0], &saw[0], ());
-    // let verb_l = &verb[0] * 0.5 + &mix[0] * 0.5;
-    // let verb_r = &verb[1] * 0.5 + &mix[0] * 0.5;
+    let mix = &bd.output(0) + &sd.output(0) + &saw.output(0);
+    // let verb = StereoReverb::default().node(&graph, &saw.output(0), &saw.output(0), ());
+    // let verb_l = &verb.output(0) * 0.5 + &mix.output(0) * 0.5;
+    // let verb_r = &verb[1] * 0.5 + &mix.output(0) * 0.5;
 
     // let mix_l = verb_l;
     // let mix_r = verb_r;
