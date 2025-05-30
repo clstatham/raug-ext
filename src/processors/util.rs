@@ -22,7 +22,7 @@ pub fn message<T>(
     #[output] out: &mut Option<T>,
 ) -> ProcResult<()>
 where
-    T: Signal,
+    T: Signal + Clone,
 {
     if *trig {
         *out = Some(message.clone());
@@ -33,7 +33,7 @@ where
     Ok(())
 }
 
-impl<T: Signal> Message<T> {
+impl<T: Signal + Clone> Message<T> {
     pub fn new(message: T) -> Self {
         Message {
             trig: false,
@@ -52,7 +52,7 @@ pub fn register<T>(
     #[output] out: &mut T,
 ) -> ProcResult<()>
 where
-    T: Signal,
+    T: Signal + Clone + Default,
 {
     if *set {
         last_value.clone_from(input);
@@ -67,7 +67,7 @@ where
 #[processor(derive(Default))]
 pub fn unwrap_or<T>(#[input] a: &Option<T>, #[input] b: &T, #[output] out: &mut T) -> ProcResult<()>
 where
-    T: Signal + Default,
+    T: Signal + Clone + Default,
 {
     if let Some(value) = a {
         *out = value.clone();
@@ -85,7 +85,7 @@ pub fn sample_and_hold<T>(
     #[output] out: &mut T,
 ) -> ProcResult<()>
 where
-    T: Signal + Default,
+    T: Signal + Clone + Default,
 {
     if *trig {
         *last_value = input.clone();
@@ -98,7 +98,7 @@ where
 #[processor(derive(Default))]
 pub fn some<T>(#[input] a: &T, #[output] out: &mut Option<T>) -> ProcResult<()>
 where
-    T: Signal,
+    T: Signal + Clone,
 {
     *out = Some(a.clone());
     Ok(())
@@ -112,7 +112,7 @@ pub fn random_choice<T>(
     #[output] out: &mut T,
 ) -> ProcResult<()>
 where
-    T: Signal,
+    T: Signal + Clone + Default,
 {
     if *trig {
         *state = options
@@ -137,7 +137,7 @@ pub enum ChannelError {
 #[processor(derive(Debug))]
 pub fn tx<T>(#[state] tx: &mut Sender<T>, #[input] input: &T) -> ProcResult<()>
 where
-    T: Signal,
+    T: Signal + Clone,
 {
     if tx.try_send(input.clone()).is_err() {
         return Err(ProcessorError::new(ChannelError::SendError));
@@ -152,7 +152,7 @@ pub fn rx<T>(
     #[output] out: &mut T,
 ) -> ProcResult<()>
 where
-    T: Signal,
+    T: Signal + Clone + Default,
 {
     if let Ok(value) = rx.try_recv() {
         last.clone_from(&value);
@@ -162,12 +162,12 @@ where
 }
 
 #[derive(Debug)]
-pub struct Channel<T: Signal> {
+pub struct Channel<T: Signal + Clone + Default> {
     tx: Arc<Mutex<Tx<T>>>,
     rx: Arc<Mutex<Rx<T>>>,
 }
 
-impl<T: Signal> Channel<T> {
+impl<T: Signal + Clone + Default> Channel<T> {
     pub fn new(init: T) -> Self {
         let (tx, rx) = crossbeam_channel::unbounded();
         Channel::from_tx_rx(
@@ -210,7 +210,7 @@ impl<T: Signal> Channel<T> {
     }
 }
 
-impl<T: Signal> Clone for Channel<T> {
+impl<T: Signal + Clone + Default> Clone for Channel<T> {
     fn clone(&self) -> Self {
         Channel {
             tx: Arc::clone(&self.tx),
@@ -219,13 +219,13 @@ impl<T: Signal> Clone for Channel<T> {
     }
 }
 
-impl<T: Signal + Default> Default for Channel<T> {
+impl<T: Signal + Clone + Default> Default for Channel<T> {
     fn default() -> Self {
         Self::new(T::default())
     }
 }
 
-impl<T: Signal> Processor for Channel<T> {
+impl<T: Signal + Clone + Default> Processor for Channel<T> {
     fn name(&self) -> &str {
         "Channel"
     }

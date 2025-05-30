@@ -14,7 +14,7 @@ pub fn get<T>(
     #[output] out: &mut T,
 ) -> ProcResult<()>
 where
-    T: Signal + Default,
+    T: Signal + Default + Clone,
 {
     let index = *index as i32;
     if index < 0 || index >= list.len() as i32 {

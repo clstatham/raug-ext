@@ -209,14 +209,14 @@ impl<T: Signal> IntoPattern<T> for List<T> {
     }
 }
 
-impl<T: Signal> IntoPattern<T> for &[T] {
+impl<T: Signal + Clone> IntoPattern<T> for &[T] {
     #[inline]
     fn into_pattern(self) -> List<T> {
         List::from_slice(self)
     }
 }
 
-impl<T: Signal, const N: usize> IntoPattern<T> for [T; N] {
+impl<T: Signal + Clone, const N: usize> IntoPattern<T> for [T; N] {
     #[inline]
     fn into_pattern(self) -> List<T> {
         List::from_slice(&self)
