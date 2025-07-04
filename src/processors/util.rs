@@ -163,8 +163,8 @@ where
 
 #[derive(Debug)]
 pub struct Channel<T: Signal + Clone + Default> {
-    tx: Arc<Mutex<Tx<T>>>,
-    rx: Arc<Mutex<Rx<T>>>,
+    pub tx: Arc<Mutex<Tx<T>>>,
+    pub rx: Arc<Mutex<Rx<T>>>,
 }
 
 impl<T: Signal + Clone + Default> Channel<T> {

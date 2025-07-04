@@ -1,8 +1,73 @@
+use std::sync::{Arc, Mutex};
+
 use raug::prelude::*;
 
 use crate::prelude::*;
 
+pub struct InputChannel<T: Signal + Clone + Default> {
+    pub(crate) tx: Arc<Mutex<Tx<T>>>,
+}
+
+pub struct OutputChannel<T: Signal + Clone + Default> {
+    pub(crate) rx: Arc<Mutex<Rx<T>>>,
+}
+
+impl<T: Signal + Clone + Default> InputChannel<T> {
+    #[inline]
+    pub fn send(&self, value: T) -> Result<(), ChannelError> {
+        let tx = self.tx.lock().unwrap();
+        if tx.tx.try_send(value).is_err() {
+            return Err(ChannelError::SendError);
+        }
+        Ok(())
+    }
+}
+
+impl<T: Signal + Clone + Default> OutputChannel<T> {
+    #[inline]
+    pub fn recv(&self) -> T {
+        let mut rx = self.rx.lock().unwrap();
+        if let Ok(value) = rx.rx.try_recv() {
+            rx.last.clone_from(&value);
+        }
+        rx.last.clone()
+    }
+
+    pub fn recv_all(&self) -> Vec<T> {
+        let mut rx = self.rx.lock().unwrap();
+        let mut values = vec![rx.last.clone()];
+        while let Ok(value) = rx.rx.try_recv() {
+            rx.last.clone_from(&value);
+            values.push(value);
+        }
+        values
+    }
+}
+
+pub trait InputExt {
+    fn channel<T: Signal + Clone + Default>(&self) -> InputChannel<T>;
+}
+
+impl InputExt for Input {
+    #[inline]
+    #[track_caller]
+    fn channel<T: Signal + Clone + Default>(&self) -> InputChannel<T> {
+        assert_eq!(
+            T::signal_type(),
+            self.signal_type(),
+            "Signal type must match for channel creation",
+        );
+        let channel = Channel::new(T::default());
+        let tx = channel.tx.clone();
+        let channel_node = self.graph().node(channel);
+        self.connect(channel_node.output(0));
+        InputChannel { tx }
+    }
+}
+
 pub trait OutputExt {
+    fn channel<T: Signal + Default + Clone>(&self) -> OutputChannel<T>;
+
     fn powf(&self, b: impl IntoOutputExt) -> Node;
     fn sqrt(&self) -> Node;
     fn sin(&self) -> Node;
@@ -118,6 +183,21 @@ macro_rules! specific_unary_op_impl {
 }
 
 impl OutputExt for Output {
+    #[inline]
+    #[track_caller]
+    fn channel<T: Signal + Default + Clone>(&self) -> OutputChannel<T> {
+        assert_eq!(
+            T::signal_type(),
+            self.signal_type(),
+            "Signal type must match for channel creation",
+        );
+        let channel = Channel::new(T::default());
+        let rx = channel.rx.clone();
+        let channel_node = self.graph().node(channel);
+        self.connect(&channel_node.input(0));
+        OutputChannel { rx }
+    }
+
     #[inline]
     #[track_caller]
     fn powf(&self, b: impl IntoOutputExt) -> Node {
